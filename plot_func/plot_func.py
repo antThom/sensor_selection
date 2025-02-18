@@ -39,7 +39,8 @@ def plot_scene(agents, targets, env, ax, fig):
     
     set_max_bounds(agents,targets,env, ax)
     set_axis(ax,fig,fontSize)
-    plt.show(block=False)
+    # plt.show(block=False)
+    plt.pause(0.05)
 
 def set_max_bounds(agents,targets,env,ax):
     x_min_limit, x_max_limit = plt.gca().get_xlim()

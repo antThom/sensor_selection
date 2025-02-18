@@ -26,3 +26,12 @@ class environment:
             
             if not overlap:
                 return #self.x, self.radii
+            
+    def in_preclusion(self,pos):
+        # Determine if the agent is in the preclusion
+        in_pre = self.x - pos.T
+        R = []
+        for inside, radii, noise in zip(in_pre, self.radii, self.noise):
+            R.append( [np.linalg.norm(inside)<=radii,noise] )
+
+        return R

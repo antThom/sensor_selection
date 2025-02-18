@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import sys
-import random
 
 sys.path.append(os.path.abspath("agent"))
 sys.path.append(os.path.abspath("sensor"))
@@ -20,16 +19,18 @@ import matplotlib.pyplot as plt
 
 
 
-def main(agents, targets, env, ax, fig, time, dt):
+def main(agents, targets, env, ax, fig, time, dt, plotting):
     for t in np.arange(time[0],time[1],dt):
         # STEP 1: MOVE THE AGENT
         for agent in agents:
-            agent.eom(targets)
+            agent.eom(targets, env)
 
         # STEP 4: PLOT
         if plotting:
+            plt.cla()
+            plt.title(label=f"Time: {t:2f} sec")
             plot_func.plot_scene(agents, targets, env, ax, fig)
-    print("HI")
+            
 
 
 
@@ -37,7 +38,7 @@ def main(agents, targets, env, ax, fig, time, dt):
 
 
 if __name__ == "__main__":
-    random.seed(1)
+    np.random.seed(1)
     dim = 2
     dt  = 0.05 
     time = [0,30]
@@ -58,10 +59,11 @@ if __name__ == "__main__":
         agents.append( A.agent(agent_x,dim,dt,sensors) )
 
     # ENVIRONMENT
-    num_preclusions = 3
+    num_preclusions = 8
     preclusion_size = 0.1
     env = E.environment(dim,num_preclusions,preclusion_size)
     if plotting:
+        plt.ion()
         fig, ax = plt.subplots()
         plot_func.plot_scene(agents, targets, env, ax, fig)
-    main(agents, targets, env, ax, fig, time, dt)
+    main(agents, targets, env, ax, fig, time, dt, plotting)
