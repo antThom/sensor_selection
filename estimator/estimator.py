@@ -12,8 +12,8 @@ class Kalman_Filters:
 
     def predict(self, u):
         # Predict the state and state covariance
-        # self.x = np.dot(self.F, self.x) + np.dot(self.B, u)
-        self.x = np.dot(self.F, self.x) + u
+        self.x = np.dot(self.F, self.x) + np.dot(self.B, u)
+        # self.x = np.dot(self.F, self.x) + u
         self.P = np.dot(np.dot(self.F, self.P), self.F.T) + self.Q
         return self.x
     
