@@ -40,6 +40,7 @@ def plot_scene(agents, targets, env, ax, fig):
     # Plot Estimated Target pos and vel (For 1 target)
     speed_hat = np.linalg.norm(agents[0].xt_hat[2:,0])
     est_color = np.array([255, 204, 204])/255
+
     ax.quiver(agents[0].xt_hat[0,0], agents[0].xt_hat[1,0], agents[0].xt_hat[2,0]/speed_hat, agents[0].xt_hat[3,0]/speed_hat,
                  color=est_color, angles='uv')
     ax.scatter(agents[0].xt_hat[0,0], agents[0].xt_hat[1,0],c=est_color, s=24, marker='+')
@@ -59,11 +60,12 @@ def set_max_bounds(agents,targets,env,ax):
     attr.append(env)
     # Collect all of the x and y positions
     for agent in attr:
-        x.append(agent.x[0,0])
-        if agent.x.shape[1] == 1:
-            y.append(agent.x[1,0])
-        elif agent.x.shape[1] == 2:
-            y.append(agent.x[0,1])
+        if hasattr(agent,"x"):
+            x.append(agent.x[0,0])
+            if agent.x.shape[1] == 1:
+                y.append(agent.x[1,0])
+            elif agent.x.shape[1] == 2:
+                y.append(agent.x[0,1])
     
     # Find the max and min of x and y
     scale = 1.25
