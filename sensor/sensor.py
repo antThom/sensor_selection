@@ -12,6 +12,13 @@ class SENSOR:
         sector = patches.Wedge((center[0], center[1]), self.range, np.rad2deg(theta-0.5*self.FOV), np.rad2deg(theta+0.5*self.FOV), facecolor="green", alpha=0.5)
         ax.add_patch(sector)
 
+class CAMERA:
+    def __init__(self):
+        self.fx
+        self.fy
+        self.cx
+        self.cyS
+
 class bearing_sensor(SENSOR):
     def __init__(self,num,FOV,R,cov):
         self.num_sensor = num
