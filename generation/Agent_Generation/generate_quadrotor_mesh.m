@@ -68,8 +68,10 @@ Tri_cyl = generate_rotor_guard(r_o,r_i,N,height);
 
 %% Attach Rotor to body
 Num_rotor = 4;
+rotor_pos = [-0.5,-0.5,0;
+             ]
 for ii=1:Num_rotor
-    points = [TR.Points;Tri_cyl.Points];
+    points = [TR.Points;Tri_cyl.Points + []];
     connectivity = [TR.ConnectivityList];
 end
 
