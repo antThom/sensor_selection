@@ -2,27 +2,18 @@
 import numpy as np
 import pybullet as p
 import pybullet_data
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 from stable_baselines3 import PPO
 import threading
 from ursina import *
-
-
-# --- Ursina Setup (Visualization Only) ---
-app = Ursina(borderless=False)
-camera.position = (0, 10, -20)
-camera.rotation_x = 30
-ursina_agent = Entity(model='cube', color=color.azure, scale=(1,1,1))
-ursina_goal = Entity(model='sphere', color=color.red, scale=(1,1,1))
-
 
 # --- PyBullet + Gym Environment ---
 class UrsinaBulletEnv(gym.Env):
     def __init__(self):
         super().__init__()
         self.physics_client = p.connect(p.DIRECT)
-        p.setGravity(0, 0, -9.8, physicsClientId=self.physics_client)
+        p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
         # Action: forward, backward, left, right
@@ -32,14 +23,15 @@ class UrsinaBulletEnv(gym.Env):
 
         self.reset()
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
         p.resetSimulation(physicsClientId=self.physics_client)
         p.setGravity(0, 0, -9.8, physicsClientId=self.physics_client)
         plane_id = p.loadURDF("plane.urdf", physicsClientId=self.physics_client)
 
         # Load agent
         self.agent = p.loadURDF("r2d2.urdf", basePosition=[0, 0, 0.1], physicsClientId=self.physics_client)
-        self.goal_pos = np.array([np.random.uniform(-5, 5), np.random.uniform(-5, 5)])
+        self.goal_pos = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1)])
         return self._get_obs()
 
     def _get_obs(self):
@@ -93,6 +85,35 @@ def train():
 # Train in a thread so Ursina doesn't freeze
 threading.Thread(target=train).start()
 
+# Setup the sim
+def sim_setup():
+    # --- Ursina Setup (Visualization Only) ---
+    app = Ursina(borderless=False)
+    # camera.position = (0, 10, -20)
+    # camera.rotation_x = 30
+    ursina_agent = Entity(model='cube', color=color.azure, scale=(1,1,1))
+    ursina_goal = Entity(model='sphere', color=color.red, scale=(1,1,1))
+    # Load your custom model
+    terrain_model = load_model('simple_mountain.obj')
+
+    if terrain_model is None:
+        print("❌ Failed to load terrain model.")
+    else:
+        print("✅ Terrain model loaded successfully.")
+        terrain_entity = Entity(
+            model='simple_mountain.obj',
+            texture='rock',
+            scale=1,
+            position=(500, -100, 500),
+            collider='mesh'
+        )
+
+
+
+    DirectionalLight(y=2, z=3, shadows=True)
+    AmbientLight(color=color.rgba(100, 100, 100, 0.5))
+    EditorCamera()
+    Sky()
 
 # --- Ursina Main Loop ---
 def update():
@@ -105,3 +126,8 @@ def update():
         env.render_to_ursina()
 
 app.run()
+
+
+if __name__ == "__main__":
+    np.random.seed(1)
+    sim_setup()
