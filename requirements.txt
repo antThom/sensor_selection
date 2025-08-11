@@ -1,0 +1,7 @@
+--index-url https://pypi.org/simple
+ursina
+gymnasium
+pybullet
+stable-baselines3
+numpy
+shimmy
