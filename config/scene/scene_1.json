@@ -1,0 +1,17 @@
+{
+    "scene": {
+        "terrain": "config/terrain/mountains.json",
+        "scale": 1.0,
+        "seed": 42
+    },
+
+    "agent": {
+        "agent_1": "drone",
+        "agent_2": "drone"
+    },
+
+    "do_plots": true,
+    "save_plots": true,
+    "time_limit": 30.0,
+    "render": true
+}
