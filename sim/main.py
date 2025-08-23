@@ -1,133 +1,79 @@
-# main.py
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
 import pybullet as p
 import pybullet_data
-import gymnasium as gym
-from gymnasium import spaces
 from stable_baselines3 import PPO
-import threading
-from ursina import *
 
-# --- PyBullet + Gym Environment ---
-class UrsinaBulletEnv(gym.Env):
-    def __init__(self):
+class PyBulletGoalEnv(gym.Env):
+    def __init__(self, render=False):
         super().__init__()
-        self.physics_client = p.connect(p.DIRECT)
-        p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
+        self.render_mode = render
+        self.physics_client = p.connect(p.GUI if render else p.DIRECT)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
+        p.setGravity(0, 0, -9.8, physicsClientId=self.physics_client)
 
-        # Action: forward, backward, left, right
+        # Action space: discrete 4-directional movement
         self.action_space = spaces.Discrete(4)
-        # Observation: [agent_x, agent_y, goal_x, goal_y]
+        # Observation space: [agent_x, agent_y, goal_x, goal_y]
         self.observation_space = spaces.Box(low=-10, high=10, shape=(4,), dtype=np.float32)
 
-        self.reset()
+        self.agent = None
+        self.goal_pos = np.zeros(2)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         p.resetSimulation(physicsClientId=self.physics_client)
         p.setGravity(0, 0, -9.8, physicsClientId=self.physics_client)
-        plane_id = p.loadURDF("plane.urdf", physicsClientId=self.physics_client)
+        p.loadURDF("plane.urdf", physicsClientId=self.physics_client)
 
-        # Load agent
         self.agent = p.loadURDF("r2d2.urdf", basePosition=[0, 0, 0.1], physicsClientId=self.physics_client)
-        self.goal_pos = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1)])
-        return self._get_obs()
+        self.goal_pos = np.random.uniform(-5, 5, size=2)
+        return self._get_obs(), {}
 
     def _get_obs(self):
         pos, _ = p.getBasePositionAndOrientation(self.agent, physicsClientId=self.physics_client)
         return np.array([pos[0], pos[1], self.goal_pos[0], self.goal_pos[1]], dtype=np.float32)
 
     def step(self, action):
-        pos, _ = p.getBasePositionAndOrientation(self.agent, physicsClientId=self.physics_client)
-        x, y = pos[0], pos[1]
-
-        # Action mapping
+        # Interpret action
         dx, dy = 0, 0
         if action == 0: dy = 0.2   # forward
-        elif action == 1: dy = -0.2 # back
+        elif action == 1: dy = -0.2 # backward
         elif action == 2: dx = -0.2 # left
         elif action == 3: dx = 0.2  # right
 
+        # Move agent
         p.resetBaseVelocity(self.agent, linearVelocity=[dx, dy, 0], physicsClientId=self.physics_client)
         p.stepSimulation(physicsClientId=self.physics_client)
 
         obs = self._get_obs()
         agent_pos = obs[:2]
         distance = np.linalg.norm(agent_pos - self.goal_pos)
-
         reward = -distance
-        done = distance < 0.5
-        return obs, reward, done, {}
+        terminated = distance < 0.5
+        truncated = False
 
-    def render_to_ursina(self):
-        # Sync pybullet agent pos -> ursina agent
-        pos, _ = p.getBasePositionAndOrientation(self.agent, physicsClientId=self.physics_client)
-        ursina_agent.position = (pos[0], 0.5, pos[1])
-        ursina_goal.position = (self.goal_pos[0], 0.5, self.goal_pos[1])
+        return obs, reward, terminated, truncated, {}
 
     def close(self):
         p.disconnect(physicsClientId=self.physics_client)
 
 
-# --- RL Training ---
-env = UrsinaBulletEnv()
-
-model = PPO("MlpPolicy", env, verbose=1)
-training_done = False
-
-
-def train():
-    global training_done
-    model.learn(total_timesteps=10000)
-    training_done = True
-
-# Train in a thread so Ursina doesn't freeze
-threading.Thread(target=train).start()
-
-# Setup the sim
-def sim_setup():
-    # --- Ursina Setup (Visualization Only) ---
-    app = Ursina(borderless=False)
-    # camera.position = (0, 10, -20)
-    # camera.rotation_x = 30
-    ursina_agent = Entity(model='cube', color=color.azure, scale=(1,1,1))
-    ursina_goal = Entity(model='sphere', color=color.red, scale=(1,1,1))
-    # Load your custom model
-    terrain_model = load_model('simple_mountain.obj')
-
-    if terrain_model is None:
-        print("❌ Failed to load terrain model.")
-    else:
-        print("✅ Terrain model loaded successfully.")
-        terrain_entity = Entity(
-            model='simple_mountain.obj',
-            texture='rock',
-            scale=1,
-            position=(500, -100, 500),
-            collider='mesh'
-        )
-
-
-
-    DirectionalLight(y=2, z=3, shadows=True)
-    AmbientLight(color=color.rgba(100, 100, 100, 0.5))
-    EditorCamera()
-    Sky()
-
-# --- Ursina Main Loop ---
-def update():
-    if not training_done:
-        obs = env._get_obs()
-        action, _ = model.predict(obs, deterministic=True)
-        _, _, done, _ = env.step(action)
-        if done:
-            env.reset()
-        env.render_to_ursina()
-
-app.run()
-
-
 if __name__ == "__main__":
-    np.random.seed(1)
-    sim_setup()
+    env = PyBulletGoalEnv(render=True)
+    model = PPO("MlpPolicy", env, verbose=1)
+    model.learn(total_timesteps=10000)
+    model.save("ppo_pybullet_goal")
+
+    # Test the trained model
+    obs, _ = env.reset()
+    total_reward = 0
+    for _ in range(1000):
+        action, _ = model.predict(obs, deterministic=True)
+        obs, reward, done, truncated, _ = env.step(action)
+        total_reward += reward
+        if done:
+            print(f"✅ Goal reached! Total reward: {total_reward:.2f}")
+            break
+    env.close()

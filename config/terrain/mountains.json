@@ -1,0 +1,30 @@
+{
+    "Object Labels": "labels.json",
+    "Layered Surface": {
+        "Mesh": "generation/Terrain_Generation/terrain_type/Mountain/Mountain_8Peaks_150Height_42Seed.asc",
+        "Scale": [1.0, 1.0, 1.0],
+        "Texture": "sim/assets/textures/rock.jpg"
+    },
+
+    "Surface Mesh": [
+        {
+            "Mesh": "generation/Terrain_Generation/terrain_type/Mountain/Mountain_8Peaks_150Height_42Seed.asc",
+            "Rotate Y to Z": false,
+            "YawPitchRoll": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "Position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "Scale": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        }
+    ]
+}
