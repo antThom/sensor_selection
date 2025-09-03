@@ -2,16 +2,20 @@
     "scene": {
         "terrain": "config/terrain/mountains.json",
         "scale": 1.0,
-        "seed": 42
+        "vegetation": {"tree": "config/"}
     },
 
-    "agent": {
-        "agent_1": "drone",
-        "agent_2": "drone"
+    "blue_agent": {
+        "agent_1": "config/agent/basic_drone.json"
+    },
+
+    "red_agent": {
+        "agent_1": "config/agent/basic_drone.json"
     },
 
     "do_plots": true,
     "save_plots": true,
     "time_limit": 30.0,
-    "render": true
+    "render": true,
+    "seed": 42
 }

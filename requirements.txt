@@ -5,3 +5,4 @@ pybullet
 stable-baselines3
 numpy
 shimmy
+scipy
