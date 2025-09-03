@@ -1,6 +1,7 @@
 import argparse
 from stable_baselines3 import PPO
 from sim import SensorSelection_Env as SSE
+from sim import print_helpers as ph
 
 def main():
     parser = argparse.ArgumentParser()
@@ -19,12 +20,12 @@ def main():
 
     for ii in range(args.n):
         try:
-            print(f"Trial {ii}/{args.n}")
+            print(f"{ph.BLUE}Trial {ii}/{args.n}{ph.RESET}")
             env.run_sim(model)
         except KeyboardInterrupt:
             break
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"{ph.RED}Error: {e}{ph.RESET}")
 
 
 if __name__ == "__main__":

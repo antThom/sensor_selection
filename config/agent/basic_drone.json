@@ -1,0 +1,9 @@
+{
+    "agent": "bullet/bullet3/data/Quadrotor/quadrotor.urdf",
+    "sensors": {
+        "sensor_1": {
+            "file": "sim/Sensor/basic_camera.json",
+            "sensor_pos": [0,0,-1]
+        }
+    }
+}
