@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<robot name="terrain">
+
+  <link name="terrain_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="generation\Terrain_Generation\terrain_type\Mountain\Mountain_8Peaks_150Height_42Seed.obj" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="generation\Terrain_Generation\terrain_type\Mountain\Mountain_8Peaks_150Height_42Seed.obj" scale="1 1 1"/>
+      </geometry>
+    </collision>
+  </link>
+
+</robot>

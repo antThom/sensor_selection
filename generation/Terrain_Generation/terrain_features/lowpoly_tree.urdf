@@ -1,0 +1,16 @@
+<robot name="low_poly_tree">
+  <link name="low_poly_tree_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="low_poly_tree.obj" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="low_poly_tree.obj" scale="1 1 1"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>
