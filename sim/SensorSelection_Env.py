@@ -23,6 +23,7 @@ class SensorSelection_Env(gym.Env):
         self.time_limit  = self.config.get("time_limit", 30.0)
         self.save_plots  = self.config.get("save_plots", False)
         self.seed        = self.config.get("seed", 42)
+        self.sim_dt      = self.config.get("sim_dt", 0.001)
         np.random.seed(self.seed)
 
         self.physics_client = p.connect(p.GUI if self.render_mode else p.DIRECT)
@@ -64,20 +65,16 @@ class SensorSelection_Env(gym.Env):
         super().reset(seed=seed)
         p.resetSimulation(physicsClientId=self.physics_client)
         p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
-        
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+
         # Enable Shadows
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
 
         """ Load the Terrain"""
         base_dir = os.getcwd()
-        terrain_file_name = os.path.join(base_dir,os.path.normpath(self.terrain["Layered Surface"]["Mesh"]))
-        self.env = ENV.Environment(terrain_file_name)
-
-        texture_file_name = os.path.join(base_dir,os.path.normpath(self.terrain["Layered Surface"]["Texture"]))
-        tex_id = p.loadTexture(texture_file_name)
-        p.changeVisualShape(self.env.terrain, -1, textureUniqueId=tex_id)
-        p.changeVisualShape(self.env.terrain, -1, rgbaColor=[1,1,1,1], specularColor=[0.1,0.1,0.1])
-
+        # terrain_file_name = os.path.join(base_dir,os.path.normpath(self.terrain["Layered Surface"]["Mesh"]))
+        
+        self.env = ENV.Environment(self.terrain)
 
         """ Load the agents"""
         for agent in self.blue_agent:
@@ -108,16 +105,16 @@ class SensorSelection_Env(gym.Env):
         
         # Interpret action
         dx, dy = 0, 0
-        if action == 0: dy = 20   # forward
-        elif action == 1: dy = -20 # backward
-        elif action == 2: dx = -20 # left
-        elif action == 3: dx = 20  # right
+        if action == 0: dy = 1   # forward
+        elif action == 1: dy = -1 # backward
+        elif action == 2: dx = -1 # left
+        elif action == 3: dx = 1  # right
 
         # Move agent
         p.resetBaseVelocity(self.blue_agent[0].id, linearVelocity=[dx, dy, 0], physicsClientId=self.physics_client)
         p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=agent_pos)
         p.stepSimulation(physicsClientId=self.physics_client)
-        time.sleep(1./240.)
+        time.sleep(self.sim_dt)
 
         obs = self._get_observation()
         agent_pos = obs[:2]

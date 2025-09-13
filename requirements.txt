@@ -6,3 +6,7 @@ stable-baselines3
 numpy
 shimmy
 scipy
+shapely
+simpleaudio
+soundfile
+sounddevice
