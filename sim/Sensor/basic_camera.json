@@ -13,5 +13,6 @@
     "k3": 0.0,
     "k4": 0.0,
     "input": "None",
-    "output": "image"
+    "output": "image",
+    "frame_rate": 30
 }

@@ -17,5 +17,6 @@
     "save_plots": true,
     "time_limit": 30.0,
     "render": true,
-    "seed": 42
+    "seed": 42,
+    "sim_dt": 0.001
 }

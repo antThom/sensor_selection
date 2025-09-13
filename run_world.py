@@ -8,7 +8,7 @@ def main():
     parser.add_argument(
         "--config",
         help="json file to load settings from",
-        default="config/scene/scene_1.json",
+        default="config/scene/flat_scene.json",
     )
     parser.add_argument("--output_dir", help="path to output directory", default="logs")
     parser.add_argument("--n", help="number of trials", default=1, type=int)
