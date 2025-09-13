@@ -27,28 +27,12 @@
             ]
         },
         {
-            "Mesh": "generation/Terrain_Generation/terrain_features/lowpoly_tree.urdf"
-        },
-        {
-            "Mesh": "generation/Terrain_Generation/terrain_features/lowpoly_tree.obj",
-            "Rotate Y to Z": false,
-            "YawPitchRoll": [
-                0.0,
-                0.0,
-                0.0
-            ],
-            "Position": [
-                0.0,
-                0.0,
-                0.0
-            ],
-            "Scale": [
-                1.0,
-                1.0,
-                1.0
-            ],
-            "order": ["random", 3]
-        }
-        
+            "Mesh": "generation/Terrain_Generation/terrain_features/lowpoly_tree.urdf",
+            "patch": [0.0, 0.0,
+                      30.0, 0.0,
+                      30.0, 30.0,
+                      0.0, 30.0],
+            "density": 0.001
+        }        
     ]
 }

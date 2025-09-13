@@ -1,16 +1,48 @@
 <robot name="low_poly_tree">
-  <link name="low_poly_tree_link">
+  <!-- Trunk -->
+  <link name="base">
+    <inertial>
+      <mass value="1000.0"/>
+      <inertia ixx="100.0" iyy="100.0" izz="100.0"
+               ixy="0.0" ixz="0.0" iyz="0.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="low_poly_tree.obj" scale="1 1 1"/>
+        <mesh filename="tree_trunk.obj" scale="1 1 1"/>
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="low_poly_tree.obj" scale="1 1 1"/>
+        <mesh filename="tree_trunk.obj" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
+
+  <!-- Canopy -->
+  <link name="canopy_link">
+    <inertial>
+      <mass value="500.0"/>
+      <inertia ixx="100.0" iyy="100.0" izz="100.0"
+               ixy="0.0" ixz="0.0" iyz="0.0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="tree_canopy.obj" scale="2 2 2"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <!-- Joint to connect trunk and canopy -->
+  <joint name="trunk_to_canopy" type="fixed">
+    <parent link="base"/>
+    <child link="canopy_link"/>
+    <origin xyz="0 0 10.0" rpy="0 0 0"/>
+    <!-- No axis needed for fixed joints -->
+  </joint>
+
 </robot>
