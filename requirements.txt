@@ -10,3 +10,5 @@ shapely
 simpleaudio
 soundfile
 sounddevice
+trimesh
+pyqt5==5.15.10
