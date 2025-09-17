@@ -4,6 +4,7 @@ import json
 import sim.print_helpers as ph
 import pybullet as p
 import pybullet_data
+from pathlib import Path
 from scipy.spatial.transform import Rotation as Rot
 from sim.Sensor.sensor import load_sensor_from_file
 
@@ -29,21 +30,21 @@ class Agent:
     def _update_states(self):
         self.x = np.vstack([self.position,self.orientation,self.velocity,self.angular_rates])
 
-    def _reset_states(self,x=None, terrain_bound=(None,None),physicsClient=None):
+    def _reset_states(self,x=None, terrain_bound=(None,None),physicsClient=None,team=None):
         if x:
             print("state is defined but Need to fill out in agent")
-        elif not x and not terrain_bound:
+        elif not x and not terrain_bound.any():
             print("neither the state nor the terrain bounds are defined, need to fill out")
         else:
-            self.position[:2] = np.array(terrain_bound).reshape((2,1)) * np.random.uniform(low=0.0, high=1.0, size=(2,1))
+            self.position[:2] = np.array(terrain_bound).reshape((2,1)) * np.random.uniform(low=0.0, high=0.60, size=(2,1))
             self.position[-1] = 10
             self.velocity = self.max_vel * np.random.uniform(low=0.0, high=1.0, size=(3,1))
             self.orientation = np.zeros((3,1))
             self.angular_rates = np.zeros((3,1))
             self._update_states()
-            self._load_file(physicsClient)
+            self._load_file(physicsClient,team)
 
-    def _load_file(self,physicsClient=None):
+    def _load_file(self,physicsClient=None,team=None):
         # Load the agent's json 
         with open(self.filepath, "r") as f:
             config_data = json.load(f)
@@ -51,17 +52,24 @@ class Agent:
         
         # Load the urdf file
         agent_file  = self.config.get("agent", "r2d2.urdf")  # was .udrf
+        agent_file = Path(os.path.abspath(agent_file))
         # resolve relative to the agent JSON file location
         # base_dir = os.path.dirname(self.filepath)
         # agent_file = agent_file if os.path.isabs(agent_file) else os.path.join(base_dir, agent_file)
 
         self.id = p.loadURDF(
-            os.path.abspath(agent_file),
+            fileName=str(agent_file),
             basePosition=self.position.flatten().tolist(),
             baseOrientation=p.getQuaternionFromEuler(self.orientation.flatten().tolist()),
             physicsClientId=physicsClient,
             globalScaling=1
         )
+
+        if team:
+            p.changeVisualShape(self.id, linkIndex=-1, rgbaColor=team)
+        else:
+            p.changeVisualShape(self.id, linkIndex=-1, rgbaColor=[0.3,0.3,0.3,1])
+
 
         # Load the sensors
         sensors_cfg = self.config.get("sensors", {})
