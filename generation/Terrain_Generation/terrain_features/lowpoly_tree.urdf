@@ -1,17 +1,21 @@
-<robot name="low_poly_tree">
+<robot name="low_poly_tree_split">
+
   <!-- Trunk -->
-  <link name="base">
+  <link name="trunk">
     <inertial>
-      <mass value="1000.0"/>
-      <inertia ixx="100.0" iyy="100.0" izz="100.0"
-               ixy="0.0" ixz="0.0" iyz="0.0"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 1" rpy="0 0 0"/>  <!-- assume center of trunk mass is 1m up -->
+      <mass value="5.0"/>
+      <inertia ixx="0.2" iyy="0.2" izz="0.1"
+               ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <mesh filename="tree_trunk.obj" scale="1 1 1"/>
       </geometry>
+      <material name="brown">
+        <color rgba="0.4 0.2 0.1 1.0"/>
+      </material>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -22,27 +26,35 @@
   </link>
 
   <!-- Canopy -->
-  <link name="canopy_link">
+  <link name="canopy">
     <inertial>
-      <mass value="500.0"/>
-      <inertia ixx="100.0" iyy="100.0" izz="100.0"
-               ixy="0.0" ixz="0.0" iyz="0.0"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 1" rpy="0 0 0"/>  <!-- assume center of trunk mass is 1m up -->
+      <mass value="5.0"/>
+      <inertia ixx="0.2" iyy="0.2" izz="0.1"
+               ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 5.0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="tree_canopy.obj" scale="2 2 2"/>
+        <mesh filename="tree_canopy.obj" scale="1 1 1"/>
       </geometry>
+      <material name="green">
+        <color rgba="0.1 0.6 0.1 0.8"/> <!-- Semi-transparent green -->
+      </material>
     </visual>
+    <collision>
+      <origin xyz="0 0 5.0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="tree_canopy.obj" scale="1 1 1"/>
+      </geometry>
+    </collision>
   </link>
 
-  <!-- Joint to connect trunk and canopy -->
+  <!-- Joint: attach canopy to trunk -->
   <joint name="trunk_to_canopy" type="fixed">
-    <parent link="base"/>
-    <child link="canopy_link"/>
-    <origin xyz="0 0 10.0" rpy="0 0 0"/>
-    <!-- No axis needed for fixed joints -->
+    <parent link="trunk"/>
+    <child link="canopy"/>
+    <origin xyz="0 0 5.0" rpy="0 0 0"/>
   </joint>
 
 </robot>

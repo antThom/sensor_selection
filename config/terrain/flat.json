@@ -28,11 +28,20 @@
         },
         {
             "Mesh": "generation/Terrain_Generation/terrain_features/lowpoly_tree.urdf",
+            "type": "tree",
+            "position_type": "patch",
             "patch": [0.0, 0.0,
-                      30.0, 0.0,
-                      30.0, 30.0,
-                      0.0, 30.0],
-            "density": 0.001
-        }        
+                      100.0, 0.0,
+                      100.0, 100.0,
+                      0.0, 100.0],
+            "density": 0.05
+        },
+        {
+            "Mesh": "generation/Terrain_Generation/terrain_features/cloud.urdf",
+            "type": "cloud",
+            "position_type": "random",
+            "density": 0.05,
+            "altitude": 60
+        }       
     ]
 }
