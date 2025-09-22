@@ -8,91 +8,119 @@ import json
 import os, sys
 from sim.Environment import environment as ENV
 from sim.Agent import agent as AGENT
+from sim.Agent import team as TEAM
 from sim.Sensor import sensor as SENSOR
+from gui.gui import CameraViewer
 import time
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtGui import QImage, QPixmap, QFont
 import sim.print_helpers as ph
 
-class CameraViewer(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Multi-Camera Viewer")
+# class CameraViewer(QWidget):
+#     def __init__(self):
+#         super().__init__()
+#         self.setWindowTitle("Multi-Camera Viewer")
 
-        self.top_cam_label  = QLabel("Top View")
-        self.top_cam_label.setFont(QFont("Arial", 12, QFont.Bold))
-        self.top_cam = QLabel()
+#         self.cam = []
+#         self.label = []
+#         self.layout = QVBoxLayout()
 
-        self.side_cam_label = QLabel("Side View")
-        self.side_cam_label.setFont(QFont("Arial", 12, QFont.Bold))
-        self.side_cam = QLabel()
+#         # self.top_cam_label  = QLabel("Top View")
+#         # self.top_cam_label.setFont(QFont("Arial", 12, QFont.Bold))
+#         # self.top_cam = QLabel()
 
-        self.front_cam_label = QLabel("Front View")
-        self.front_cam_label.setFont(QFont("Arial", 12, QFont.Bold))
-        self.front_cam = QLabel()
+#         # self.side_cam_label = QLabel("Side View")
+#         # self.side_cam_label.setFont(QFont("Arial", 12, QFont.Bold))
+#         # self.side_cam = QLabel()
 
-        top_cam_layout = QVBoxLayout()
-        top_cam_layout.addWidget(self.top_cam_label)
-        top_cam_layout.addWidget(self.top_cam)
+#         # self.front_cam_label = QLabel("Front View")
+#         # self.front_cam_label.setFont(QFont("Arial", 12, QFont.Bold))
+#         # self.front_cam = QLabel()
 
-        side_cam_layout = QVBoxLayout()
-        side_cam_layout.addWidget(self.side_cam_label)
-        side_cam_layout.addWidget(self.side_cam)
+#         # top_cam_layout = QVBoxLayout()
+#         # top_cam_layout.addWidget(self.top_cam_label)
+#         # top_cam_layout.addWidget(self.top_cam)
 
-        front_cam_layout = QVBoxLayout()
-        front_cam_layout.addWidget(self.front_cam_label)
-        front_cam_layout.addWidget(self.front_cam)
+#         # side_cam_layout = QVBoxLayout()
+#         # side_cam_layout.addWidget(self.side_cam_label)
+#         # side_cam_layout.addWidget(self.side_cam)
 
-        self.layout = QVBoxLayout()
-        self.layout.addLayout(top_cam_layout)
-        self.layout.addLayout(side_cam_layout)
-        self.layout.addLayout(front_cam_layout)
-        self.setLayout(self.layout)
+#         # front_cam_layout = QVBoxLayout()
+#         # front_cam_layout.addWidget(self.front_cam_label)
+#         # front_cam_layout.addWidget(self.front_cam)
 
-        self.camera_offsets = {
-            "top"  :     {"eye": [0, 0.1, 1], "target": [0, 0, 0]},
-            "side" :     {"eye": [0, 1, 0], "target": [0, 0, 0]},
-            "rear" :     {"eye": [-10, 0, 5], "target": [0, 0, 0]},
-            "front":     {"eye": [0.75, 0, 0], "target": [1, 0, -0.1]},
-        }
+#         # self.layout = QVBoxLayout()
+#         # self.layout.addLayout(top_cam_layout)
+#         # self.layout.addLayout(side_cam_layout)
+#         # self.layout.addLayout(front_cam_layout)
+#         # self.setLayout(self.layout)
+
+#         self.camera_offsets = {
+#             "top"  :     {"eye": [0, 0.1, 1], "target": [0, 0, 0]},
+#             "side" :     {"eye": [0, 1, 0], "target": [0, 0, 0]},
+#             "rear" :     {"eye": [-10, 0, 5], "target": [0, 0, 0]},
+#             "front":     {"eye": [0.75, 0, 0], "target": [1, 0, -0.1]},
+#         }
     
-    def __del__(self):
-        print(f"{ph.RED}QLabel (cam1) deleted{ph.RESET}")
+#     def add_camera(self,name,origin,target):
 
-    def get_camera(self, view_name, pos):
-        eye_offset = self.camera_offsets[view_name]["eye"]
-        target_offset = self.camera_offsets[view_name]["target"]
-        return self.camera_view(pos, eye_offset, target_offset)
+#         # Add view to camera offsets
+#         if name not in self.camera_offsets:
+#             self.camera_offsets[name] = {"eye": origin, "target": target}
+
+#         self.label.append(QLabel(f"{name} View"))
+#         self.label[-1].setFont(QFont("Arial", 12, QFont.Bold))
+#         self.cam.append(QLabel())
+
+#         cam_layout = QVBoxLayout()
+#         cam_layout.addWidget(self.label[-1])
+#         cam_layout.addWidget(self.cam[-1])
+
+#         self.layout.addLayout(cam_layout)
+#         self.setLayout(self.layout)
+
+#     def __del__(self):
+#         print(f"{ph.RED}QLabel (cam1) deleted{ph.RESET}")
+
+#     def get_camera(self, view_name, pos):
+#         eye_offset = self.camera_offsets[view_name]["eye"]
+#         target_offset = self.camera_offsets[view_name]["target"]
+#         return self.camera_view(pos, eye_offset, target_offset)
     
-    def camera_view(self, pos, eye_offset, target_offset):
-        eye = np.array(pos) + np.array(eye_offset)
-        target = np.array(pos) + np.array(target_offset)
-        return eye.tolist(), target.tolist()
+#     def camera_view(self, pos, eye_offset, target_offset):
+#         eye = np.array(pos) + np.array(eye_offset)
+#         target = np.array(pos) + np.array(target_offset)
+#         return eye.tolist(), target.tolist()
 
-    def update_views(self, pos):
-        def render_camera(eye, target):
-            view = p.computeViewMatrix(eye, target, [0, 0, 1])
-            proj = p.computeProjectionMatrixFOV(60, 1.0, 0.1, 100)
-            _, _, rgb, _, _ = p.getCameraImage(320, 240, view, proj)
-            img = np.reshape(rgb, (240, 320, 4))[:, :, :3]
-            return img
+#     def update_views(self, pos):
+#         def render_camera(eye, target):
+#             view = p.computeViewMatrix(eye, target, [0, 0, 1])
+#             proj = p.computeProjectionMatrixFOV(60, 1.0, 0.1, 100)
+#             _, _, rgb, _, _ = p.getCameraImage(320, 240, view, proj)
+#             img = np.reshape(rgb, (240, 320, 4))[:, :, :3]
+#             return img
         
-        top_eye, top_target = self.get_camera("top", pos)
-        side_eye, side_target = self.get_camera("side", pos)
-        front_eye, front_target = self.get_camera("front", pos)
+#         for cam, label in zip(self.cam,self.label):
+#             eye, target = self.get_camera(label, pos)
         
-        top_img  = render_camera(top_eye, top_target)
-        side_img = render_camera(side_eye, side_target)
-        front_img = render_camera(front_eye, front_target)
+#         top_eye, top_target = self.get_camera("top", pos)
+#         side_eye, side_target = self.get_camera("side", pos)
+#         front_eye, front_target = self.get_camera("front", pos)
+        
+#         top_img  = render_camera(top_eye, top_target)
+#         side_img = render_camera(side_eye, side_target)
+#         front_img = render_camera(front_eye, front_target)
 
-        def to_qimage(img):
-            height, width, channels = img.shape
-            bytes_per_line = channels * width
-            return QImage(img.tobytes(), width, height, bytes_per_line, QImage.Format_RGB888)
+#         def to_qimage(img):
+#             height, width, channels = img.shape
+#             bytes_per_line = channels * width
+#             return QImage(img.tobytes(), width, height, bytes_per_line, QImage.Format_RGB888)
 
-        self.top_cam.setPixmap(QPixmap.fromImage(to_qimage(top_img)))
-        self.side_cam.setPixmap(QPixmap.fromImage(to_qimage(side_img)))
-        self.front_cam.setPixmap(QPixmap.fromImage(to_qimage(front_img)))
+#         for cam in self.cam:
+#             cam.setPixmap(QPixmap.fromImage(to_qimage(top_img)))
+#         # self.top_cam.setPixmap(QPixmap.fromImage(to_qimage(top_img)))
+#         # self.side_cam.setPixmap(QPixmap.fromImage(to_qimage(side_img)))
+#         # self.front_cam.setPixmap(QPixmap.fromImage(to_qimage(front_img)))
 
 class SensorSelection_Env(gym.Env):
     def __init__(self, config_file=""):   
@@ -109,11 +137,9 @@ class SensorSelection_Env(gym.Env):
         self.sim_dt      = self.config.get("sim_dt", 0.001)
         np.random.seed(self.seed)
 
-        # Setup Cameras
-        app = QApplication(sys.argv)
-        self.camera_viewer = CameraViewer()
-        self.camera_viewer.show()
-        time.sleep(2)
+
+        
+        # time.sleep(5)
 
         # self.physics_client = p.connect(p.DIRECT) # Turn off the GUI until the environment is loaded
         self.physics_client = p.connect(p.GUI if self.render_mode else p.DIRECT)
@@ -130,13 +156,13 @@ class SensorSelection_Env(gym.Env):
         # Observation space: [agent_x, agent_y, goal_x, goal_y]
         self.observation_space = spaces.Box(low=-10, high=10, shape=(5,), dtype=np.float32)
 
-        self.blue_agent = [AGENT.Agent(agent) for agent in self.config['blue_agent'].values()]
-        self.red_agent = [AGENT.Agent(agent) for agent in self.config['red_agent'].values()]
-
+        self.blue_team = [TEAM.Team(team_name="blue",config=self.config['blue_agent'])]
+        self.red_team = [TEAM.Team(team_name="red",config=self.config['red_agent'])]
+  
         self.goal_pos = np.zeros(2)
 
         # Load Camera Views
-        # self.init_cameras()
+        self.init_cameras()
 
     def run_sim(self,model):
         model.learn(total_timesteps=10000)
@@ -175,19 +201,19 @@ class SensorSelection_Env(gym.Env):
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
         
         """ Load the agents"""
-        for agent in self.blue_agent:
-            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client,team=[0,0,1,1])
+        for agent in self.blue_team:
+            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client)
             
             
-        for agent in self.red_agent:
-            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client,team=[1,0,0,1])
+        for agent in self.red_team:
+            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client)
         
         """ Set Camera """
         # Set initial camera parameters
-        self.camera_distance = 1
-        self.camera_yaw = 50
+        self.camera_distance = 2
+        self.camera_yaw = 0
         self.camera_pitch = -30
-        p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=tuple(self.blue_agent[0].position.T.tolist()[0]))
+        p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=tuple(self.blue_team[0].agents[0].position.T.tolist()[0]))
         # p.resetDebugVisualizerCamera(cameraDistance=10, cameraYaw=45, cameraPitch=-30, cameraTargetPosition=self.blue_agent[0].position.T)
         if self.camera_viewer.isVisible():
             self.camera_viewer.show()
@@ -232,23 +258,30 @@ class SensorSelection_Env(gym.Env):
 
 
     def init_cameras(self):
-        # Camera 1: Top-down
-        self.cam['Top_view'] = p.computeViewMatrix(
-            cameraEyePosition=[0, 0, 10],
-            cameraTargetPosition=[0, 0, 0],
-            cameraUpVector=[0, 1, 0])
+        self.app = QApplication(sys.argv)
+        self.camera_viewer = CameraViewer()
+        self.camera_viewer.show()
+    
+    def add_agent_views(self):
+        # Put these in the teams class
+        self.app = QApplication(sys.argv)
+        self.camera_viewer = CameraViewer()
+        self.camera_viewer.show()
+        """ Blue Team Camera """
+        # Top View
+        self.camera_viewer.add_camera("top",None,None)
+        # Side View
+        self.camera_viewer.add_camera("side",None,None)
+        # Front View
+        self.camera_viewer.add_camera("front",None,None)
 
-        # Camera 2: Side view
-        self.cam['Side_view'] = p.computeViewMatrix(
-            cameraEyePosition=[5, 0, 2],
-            cameraTargetPosition=[0, 0, 0],
-            cameraUpVector=[0, 0, 1])
 
-        # Projection matrix (same for both)
-        projMatrix = p.computeProjectionMatrixFOV(
-            fov=60, aspect=1.0, nearVal=0.1, farVal=100)
+        """ Red Team Camera """
+        # Top View
+        self.camera_viewer.add_camera("top",None,None)
+        # Side View
+        self.camera_viewer.add_camera("side",None,None)
+        # Front View
+        self.camera_viewer.add_camera("front",None,None)
 
-        # Render images
-        img1 = p.getCameraImage(320, 240, self.cam['Top_view'], projMatrix)
-        img2 = p.getCameraImage(320, 240, self.cam['Side_view'], projMatrix)
 
