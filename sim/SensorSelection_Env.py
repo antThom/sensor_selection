@@ -156,9 +156,9 @@ class SensorSelection_Env(gym.Env):
         # Observation space: [agent_x, agent_y, goal_x, goal_y]
         self.observation_space = spaces.Box(low=-10, high=10, shape=(5,), dtype=np.float32)
 
-        self.blue_team = [TEAM.Team(team_name="blue",config=self.config['blue_agent'])]
-        self.red_team = [TEAM.Team(team_name="red",config=self.config['red_agent'])]
-  
+        self.blue_team = TEAM.Team(team_name="blue",config=self.config['blue_agent'])
+        self.red_team = TEAM.Team(team_name="red",config=self.config['red_agent'])
+
         self.goal_pos = np.zeros(2)
 
         # Load Camera Views
@@ -186,7 +186,7 @@ class SensorSelection_Env(gym.Env):
         p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
         # Freeze the GUI Rendering
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
-        # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         # time.sleep(2)
 
         # Enable Shadows
@@ -201,33 +201,34 @@ class SensorSelection_Env(gym.Env):
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
         
         """ Load the agents"""
-        for agent in self.blue_team:
-            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client)
+        for agent in self.blue_team.agents:
+            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client,team=self.blue_team.team_color)
             
             
-        for agent in self.red_team:
-            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client)
+        for agent in self.red_team.agents:
+            agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client,team=self.red_team.team_color)
         
         """ Set Camera """
         # Set initial camera parameters
         self.camera_distance = 2
         self.camera_yaw = 0
         self.camera_pitch = -30
-        p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=tuple(self.blue_team[0].agents[0].position.T.tolist()[0]))
+        p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=tuple(self.blue_team.agents[0].position.T.tolist()[0]))
         # p.resetDebugVisualizerCamera(cameraDistance=10, cameraYaw=45, cameraPitch=-30, cameraTargetPosition=self.blue_agent[0].position.T)
-        if self.camera_viewer.isVisible():
-            self.camera_viewer.show()
+        if self.camera_viewer["blue"].isVisible() and self.camera_viewer["red"].isVisible():
+            self.camera_viewer["blue"].show()
+            self.camera_viewer["red"].show()
         self.goal_pos = np.random.uniform(-5, 5, size=2)
         return self._get_observation(), {}
         # return {}
 
     def _get_observation(self):
-        pos, _ = p.getBasePositionAndOrientation(self.blue_agent[0].id, physicsClientId=self.physics_client)
+        pos, _ = p.getBasePositionAndOrientation(self.blue_team.agents[0].id, physicsClientId=self.physics_client)
         return np.array([pos[0], pos[1], pos[2], self.goal_pos[0], self.goal_pos[1]], dtype=np.float32)
 
     def step(self, action):
-        agent_pos, _ = p.getBasePositionAndOrientation(self.blue_agent[0].id, physicsClientId=self.physics_client)
-        self.blue_agent[0].position[:] = np.array(agent_pos).reshape(3,1)
+        agent_pos, _ = p.getBasePositionAndOrientation(self.blue_team.agents[0].id, physicsClientId=self.physics_client)
+        self.blue_team.agents[0].position[:] = np.array(agent_pos).reshape(3,1)
         
         # Interpret action
         dx, dy = 0, 0
@@ -237,11 +238,17 @@ class SensorSelection_Env(gym.Env):
         elif action == 3: dx = 1  # right
 
         # Move agent
-        p.resetBaseVelocity(self.blue_agent[0].id, linearVelocity=[dx, dy, 0], physicsClientId=self.physics_client)
+        p.resetBaseVelocity(self.blue_team.agents[0].id, linearVelocity=[dx, dy, 0], physicsClientId=self.physics_client)
         p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=agent_pos)
         p.stepSimulation(physicsClientId=self.physics_client)
-        if self.camera_viewer.isVisible():
-            self.camera_viewer.update_views(agent_pos)
+        if self.camera_viewer["blue"].isVisible() and self.camera_viewer["red"].isVisible():
+            for idx, agent in enumerate(self.blue_team.agents):
+                pos, _ = p.getBasePositionAndOrientation(agent.id, physicsClientId=self.physics_client)
+                self.camera_viewer["blue"].update_views(pos=pos, team_name="blue", agent_num=idx)
+
+            for idx, agent in enumerate(self.red_team.agents):
+                pos, _ = p.getBasePositionAndOrientation(agent.id, physicsClientId=self.physics_client)
+                self.camera_viewer["red"].update_views(pos=pos, team_name="red", agent_num=idx)
         time.sleep(self.sim_dt)
 
         obs = self._get_observation()
@@ -259,29 +266,32 @@ class SensorSelection_Env(gym.Env):
 
     def init_cameras(self):
         self.app = QApplication(sys.argv)
-        self.camera_viewer = CameraViewer()
-        self.camera_viewer.show()
+        self.camera_viewer = {"blue": CameraViewer(), "red": CameraViewer()}
+        self.camera_viewer["blue"].add_team(self.blue_team,self.blue_team.team)
+        self.camera_viewer["red"].add_team(self.red_team,self.red_team.team)
+        self.camera_viewer["blue"].show()
+        self.camera_viewer["red"].show()
     
-    def add_agent_views(self):
-        # Put these in the teams class
-        self.app = QApplication(sys.argv)
-        self.camera_viewer = CameraViewer()
-        self.camera_viewer.show()
-        """ Blue Team Camera """
-        # Top View
-        self.camera_viewer.add_camera("top",None,None)
-        # Side View
-        self.camera_viewer.add_camera("side",None,None)
-        # Front View
-        self.camera_viewer.add_camera("front",None,None)
+    # def add_agent_views(self):
+    #     # Put these in the teams class
+    #     self.app = QApplication(sys.argv)
+    #     self.camera_viewer = CameraViewer()
+    #     self.camera_viewer.show()
+    #     """ Blue Team Camera """
+    #     # Top View
+    #     self.camera_viewer.add_camera("top",None,None)
+    #     # Side View
+    #     self.camera_viewer.add_camera("side",None,None)
+    #     # Front View
+    #     self.camera_viewer.add_camera("front",None,None)
 
 
-        """ Red Team Camera """
-        # Top View
-        self.camera_viewer.add_camera("top",None,None)
-        # Side View
-        self.camera_viewer.add_camera("side",None,None)
-        # Front View
-        self.camera_viewer.add_camera("front",None,None)
+    #     """ Red Team Camera """
+    #     # Top View
+    #     self.camera_viewer.add_camera("top",None,None)
+    #     # Side View
+    #     self.camera_viewer.add_camera("side",None,None)
+    #     # Front View
+    #     self.camera_viewer.add_camera("front",None,None)
 
 
