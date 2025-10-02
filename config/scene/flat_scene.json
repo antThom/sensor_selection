@@ -7,7 +7,8 @@
 
     "blue_agent": {
         "color": [0,0,1,1],
-        "agent_1": "config/agent/basic_drone.json"
+        "agent_1": "config/agent/basic_drone.json",
+        "agent_2": "config/agent/basic_drone.json"
     },
 
     "red_agent": {
