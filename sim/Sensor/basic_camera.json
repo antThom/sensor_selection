@@ -6,7 +6,7 @@
     "x_focal_length": 1.0e-1,
     "y_focal_length": 1.0e-1,
     "center": [320,256],
-    "forward": [1,0,0],
+    "forward": [0,0,1],
     "model": "pinhole",
     "k1": 0.0,
     "k2": 0.0,
@@ -14,5 +14,6 @@
     "k4": 0.0,
     "input": "None",
     "output": "image",
-    "frame_rate": 30
+    "frame_rate": 1,
+    "encode": "rgb"
 }

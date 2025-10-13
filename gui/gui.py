@@ -1,135 +1,200 @@
 from PyQt5.QtWidgets import (
-QApplication, 
-QLabel, 
-QWidget, 
-QVBoxLayout, 
-QHBoxLayout, 
-QComboBox, 
-QStackedWidget,
-QSizePolicy
+    QApplication,
+    QWidget,
+    QLabel,
+    QVBoxLayout,
+    QHBoxLayout,
+    QComboBox,
+    QStackedWidget,
+    QSizePolicy,
 )
-from PyQt5.QtGui import QImage, QPixmap, QFont
-from PyQt5.QtCore import Qt
-import sim.print_helpers as ph
-import os, sys
-import time
-import pybullet as p
-import pybullet_data
+from PyQt5.QtGui import QPixmap, QImage, QFont
+from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal, pyqtSlot
 import numpy as np
+import pybullet as p
+
 
 class CameraViewer(QWidget):
+    """GUI to display agents' fixed views (top, side, front) plus a selectable PyBullet sensor."""
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Multi-Agent Viewer")
 
-        # storage
-        self.cam = {}                 # key -> QLabel for image
-        self.label = {}               # key -> QLabel for title
-        self.drop_down = {}           # team_name -> QComboBox
-        self.agent_index = {}         # display_name -> stacked index
-        # self.layout = QVBoxLayout()
-        # self.container = QWidget()
-        
+        # Data storage
+        self.cam = {}
+        self.label = {}
+        self.drop_down = {}
+        self.sensor_selectors = {}
+        self.agent_index = {}
+        self.agents_map = {}
 
-        self.camera_offsets = {
-            "top"  :     {"eye": [0, 0.1, 1], "target": [0, 0, 0]},
-            "side" :     {"eye": [0, 1, 0], "target": [0, 0, 0]},
-            "rear" :     {"eye": [-10, 0, 5], "target": [0, 0, 0]},
-            "front":     {"eye": [0.75, 0, 0], "target": [1, 0, -0.1]},
-        }
-
-        # root layout
+        # Layout setup
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
-        # one stack to hold all agent pages
+        # Stack for agent pages
         self.stack = QStackedWidget()
         self.layout.addWidget(self.stack)
 
-    # def add_team(self,team,team_name):
-    #     # for name in range(team_name):
-    #     self.drop_down[team_name] = QComboBox()
-    #     self.add_agent(name=team_name,team=team)
-    #     self.drop_down.currentTextChanged.connect(self.on_agent_changed)
-    #     self.drop_down.setCurrentIndex(0)
+        # Default offsets for top/side/front cameras
+        self.camera_offsets = {
+            "top": {"eye": [0, 0.1, 1], "target": [0, 0, 0]},
+            "side": {"eye": [0, 1, 0], "target": [0, 0, 0]},
+            "front": {"eye": [0.75, 0, 0], "target": [1, 0, -0.1]},
+        }
 
-    # === Public API you already call ===
+    # ----------------------------
+    # TEAM AND AGENT MANAGEMENT
+    # ----------------------------
     def add_team(self, team, team_name):
-        # top bar for this team: agent selector
+        """Add all agents of a team to the viewer."""
         selector = QComboBox()
         self.drop_down[team_name] = selector
-        self.layout.insertWidget(0, selector)  # put selector above the stack
+        self.layout.insertWidget(0, selector)
 
-        # build one page per agent
-        for idx, _agent_obj in enumerate(team.agents):
+        for idx, agent_obj in enumerate(team.agents):
             display = f"{team_name} Agent {idx}"
             selector.addItem(display)
 
-            page = self._build_agent_page(team_name, idx)  # 3 camera widgets
+            page = self._build_agent_page(team_name, idx, agent_obj)
             self.agent_index[display] = self.stack.count()
             self.stack.addWidget(page)
+            self.agents_map[f"{team_name}_{idx}"] = agent_obj
 
-        # connect AFTER items are added
         selector.currentTextChanged.connect(self.on_agent_changed)
-        selector.setCurrentIndex(0)  # show first agent by default
+        selector.setCurrentIndex(0)
 
-    # Called by the combo box
-    def on_agent_changed(self, display_name):
-        idx = self.agent_index.get(display_name, 0)
-        self.stack.setCurrentIndex(idx)
+    # ----------------------------
+    # PAGE BUILDING
+    # ----------------------------
+    def _build_agent_page(self, team_name, agent_idx, agent_obj):
+        """Create a page showing top/side/front views and one sensor selector."""
+        layout = QVBoxLayout()
 
-    # === Building UI pieces ===
-    def _build_agent_page(self, team_name, agent_idx):
-        """Create one page containing the 3 views for a single agent."""
-        views = ["top", "side", "front"]  # must match camera_offsets keys
-        row = QHBoxLayout()
-        for v in views:
-            key = f"{team_name}_{agent_idx}_{v}"
-            row.addWidget(self._make_camera_widget(f"{v.capitalize()} View", key))
+        # --- Row 1: top/side/front QImage views ---
+        row_views = QHBoxLayout()
+        for view_name in ["top", "side", "front"]:
+            key = f"{team_name}_{agent_idx}_{view_name}"
+            row_views.addWidget(self._make_camera_widget(f"{view_name.capitalize()} View", key))
+        layout.addLayout(row_views)
+
+        # --- Row 2: sensor dropdown + selected sensor view ---
+        sensor_row = QVBoxLayout()
+
+        sensor_selector = QComboBox()
+        sensor_selector.addItem("Select Sensor")
+        if getattr(agent_obj, "has_sensor", False):
+            for s in agent_obj.sensors:
+                sensor_selector.addItem(s.name)
+                # connect each sensor's frame signal to GUI update slot
+                s.signals.new_frame.connect(
+                    lambda name, img, ts, t=team_name, a=agent_idx: self.on_new_sensor_frame(t, a, name, img, ts)
+                )
+        
+        sensor_row.addWidget(sensor_selector)
+
+        sensor_key = f"{team_name}_{agent_idx}_selected_sensor"
+        sensor_row.addWidget(self._make_camera_widget("Selected Sensor View", sensor_key))
+
+        self.sensor_selectors[f"{team_name}_{agent_idx}"] = sensor_selector
+        sensor_selector.currentTextChanged.connect(
+            lambda sensor_name, t=team_name, a=agent_idx: self.on_sensor_selected(t, a, sensor_name)
+        )
+
+        layout.addLayout(sensor_row)
+
+        # finalize
         page = QWidget()
-        page.setLayout(row)
+        page.setLayout(layout)
         return page
-    
-    def _make_camera_widget(self, title_text, key):
-        title = QLabel(title_text)
-        title.setFont(QFont("Arial", 12, QFont.Bold))
-        img_label = QLabel()
-        img_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def _make_camera_widget(self, title, key):
+        lbl_title = QLabel(title)
+        lbl_title.setFont(QFont("Arial", 12, QFont.Bold))
+        lbl_image = QLabel()
+        lbl_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        lbl_image.setScaledContents(True)
 
         # placeholder image
-        image = QImage(320, 240, QImage.Format_RGB888)
-        image.fill(0xFFFFFF)
-        img_label.setPixmap(QPixmap.fromImage(image))
-        img_label.setScaledContents(True)
+        img = QImage(320, 240, QImage.Format_RGB888)
+        img.fill(0xFFFFFF)
+        lbl_image.setPixmap(QPixmap.fromImage(img))
 
         v = QVBoxLayout()
-        v.addWidget(title, alignment=Qt.AlignHCenter)
-        v.addWidget(img_label)
-
+        v.addWidget(lbl_title, alignment=Qt.AlignHCenter)
+        v.addWidget(lbl_image)
         w = QWidget()
         w.setLayout(v)
 
-        self.label[key] = title
-        self.cam[key] = img_label
+        self.label[key] = lbl_title
+        self.cam[key] = lbl_image
         return w
 
-    # === Rendering helpers (kept close to yours) ===
+    # ----------------------------
+    # SELECTION HANDLERS
+    # ----------------------------
+    def on_agent_changed(self, display_name):
+        """When switching agents, reset the sensor dropdown and clear image."""
+        idx = self.agent_index.get(display_name, 0)
+        self.stack.setCurrentIndex(idx)
+
+        parts = display_name.split()
+        if len(parts) >= 3 and parts[-2] == "Agent":
+            team_name = parts[0]
+            try:
+                agent_idx = int(parts[-1])
+            except ValueError:
+                return
+
+            # reset dropdown
+            selector_key = f"{team_name}_{agent_idx}"
+            if selector_key in self.sensor_selectors:
+                selector = self.sensor_selectors[selector_key]
+                selector.blockSignals(True)
+                selector.setCurrentIndex(0)
+                selector.blockSignals(False)
+
+            # clear selected sensor view
+            sensor_key = f"{team_name}_{agent_idx}_selected_sensor"
+            if sensor_key in self.cam:
+                self.cam[sensor_key].clear()
+                self.label[sensor_key].setText("Selected Sensor View")
+
+    def on_sensor_selected(self, team_name, agent_idx, sensor_name):
+        """Display PyBullet camera sensor when selected."""
+        sensor_key = f"{team_name}_{agent_idx}_selected_sensor"
+        if not sensor_name or sensor_name == "Select Sensor":
+            self.cam[sensor_key].clear()
+            self.label[sensor_key].setText("Selected Sensor View")
+            return
+
+        agent = self.agents_map[f"{team_name}_{agent_idx}"]
+        selected_sensor = next((s for s in agent.sensors if s.name == sensor_name), None)
+        if not selected_sensor:
+            return
+
+        try:
+            img = selected_sensor.get_output()
+            h, w, c = img.shape
+            qimg = QImage(img.tobytes(), w, h, c * w, QImage.Format_RGB888)
+            self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
+            self.label[sensor_key].setText(f"{sensor_name.capitalize()} View")
+        except Exception as e:
+            print(f"Error rendering {sensor_name}: {e}")
+
+    # ----------------------------
+    # FIXED VIEWS (TOP/SIDE/FRONT)
+    # ----------------------------
     def get_camera(self, view_name, pos):
         eye_offset = self.camera_offsets[view_name]["eye"]
         target_offset = self.camera_offsets[view_name]["target"]
-        return self.camera_view(pos, eye_offset, target_offset)
-
-    def camera_view(self, pos, eye_offset, target_offset):
         eye = np.array(pos) + np.array(eye_offset)
         target = np.array(pos) + np.array(target_offset)
         return eye.tolist(), target.tolist()
 
-    # === Update just one agent's three views ===
-    def update_views(self, pos, team_name, agent_num):
-        """
-        Render top/side/front once and push to the corresponding labels for this agent.
-        Only the visible page shows them, but you can call this regardless.
-        """
+    def update_fixed_views(self, pos, team_name, agent_idx):
+        """Render top/side/front views for the given agent."""
         def render(eye, target):
             view = p.computeViewMatrix(eye, target, [0, 0, 1])
             proj = p.computeProjectionMatrixFOV(60, 1.0, 0.1, 100)
@@ -139,120 +204,61 @@ class CameraViewer(QWidget):
             bpl = c * w
             return QImage(img.tobytes(), w, h, bpl, QImage.Format_RGB888)
 
-        # compute all three images once
-        top_eye, top_target = self.get_camera("top", pos)
-        side_eye, side_target = self.get_camera("side", pos)
-        front_eye, front_target = self.get_camera("front", pos)
+        for v in ["top", "side", "front"]:
+            key = f"{team_name}_{agent_idx}_{v}"
+            eye, target = self.get_camera(v, pos)
+            qimg = render(eye, target)
+            if key in self.cam:
+                self.cam[key].setPixmap(QPixmap.fromImage(qimg))
 
-        q_top   = render(top_eye, top_target)
-        q_side  = render(side_eye, side_target)
-        q_front = render(front_eye, front_target)
+    # ----------------------------
+    # AUTO REFRESH
+    # ----------------------------
+    def start_auto_refresh(self, interval_ms=200):
+        """Refresh fixed views + selected sensor view periodically."""
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.refresh_current_agent)
+        self.timer.start(interval_ms)
 
-        # set them on the specific agent's widgets
-        keys = {
-            "top":   f"{team_name}_{agent_num}_top",
-            "side":  f"{team_name}_{agent_num}_side",
-            "front": f"{team_name}_{agent_num}_front",
-        }
-        if keys["top"] in self.cam:
-            self.cam[keys["top"]].setPixmap(QPixmap.fromImage(q_top))
-        if keys["side"] in self.cam:
-            self.cam[keys["side"]].setPixmap(QPixmap.fromImage(q_side))
-        if keys["front"] in self.cam:
-            self.cam[keys["front"]].setPixmap(QPixmap.fromImage(q_front))
-    # Old code
-    # def add_agent(self,name,team):
-    #     views = {"Top","Side","Front"}
-    #     # when adding an agent add a new item to the drop down list
-    #     for idx, agent in enumerate(team.agents):
-    #         self.drop_down[name].addItem(f"{name} Agent {idx}")
-    #         team_layout = QVBoxLayout()
-    #         team_layout.addWidget(self.drop_down[name])
-    #         self.layout.addLayout(team_layout)
-    #         cam_layout = QHBoxLayout()
-    #         for view in views:
-    #             cam_layout = self.add_camera(name=view,origin=None,target=None, cam_layout=cam_layout, agent=idx, team_name=name)
-    #             self.layout.addLayout(cam_layout)
-            
+    def refresh_current_agent(self):
+        """Update the current agent's 3 views and selected sensor view."""
+        for team_name, combo in self.drop_down.items():
+            display = combo.currentText()
+            if not display or "Agent" not in display:
+                continue
+            parts = display.split()
+            if len(parts) < 3:
+                continue
+            agent_idx = int(parts[-1])
+            agent = self.agents_map.get(f"{team_name}_{agent_idx}")
+            if agent is None:
+                continue
 
-    #     # self.container.setLayout(self.layout)
-    #     # self.setCentralWidget(self.container)
-    #     self.setLayout(self.layout)
-  
-    # def add_camera(self, name, origin, target, agent, team_name, cam_layout=QHBoxLayout()):
-    #     unit_layout = QVBoxLayout()
-    #     # Add view to camera offsets
-    #     if name not in self.camera_offsets:
-    #         self.camera_offsets[name] = {"eye": origin, "target": target}
-        
-    #     # title label
-    #     self.label[f"{team_name}_{agent}_{name}"] = QLabel(f"{name} View")
-    #     self.label[f"{team_name}_{agent}_{name}"].setFont(QFont("Arial", 12, QFont.Bold))
-        
-    #     # image lable
-    #     self.cam[f"{team_name}_{agent}_{name}"] = QLabel()
-    #     image = QImage(240, 320, QImage.Format_RGB888)
-    #     image.fill(0xFFFFFF)  # White color
-    #     self.cam[f"{team_name}_{agent}_{name}"].setPixmap(QPixmap.fromImage(image))
-    #     self.cam[f"{team_name}_{agent}_{name}"].setScaledContents(True)  # Scale the image to fit the label
+            # update the fixed top/side/front views
+            if isinstance(agent.position, tuple):
+                pos = list(agent.position)
+            else:
+                pos = agent.position.flatten().tolist()
 
-    #     unit_layout.addWidget(self.label[f"{team_name}_{agent}_{name}"])
-    #     unit_layout.addWidget(self.cam[f"{team_name}_{agent}_{name}"])
-    #     # self.cam.append(QLabel())
+            self.update_fixed_views(pos, team_name, agent_idx)
 
-    #     container = QWidget()
-    #     container.setLayout(unit_layout)
-    #     cam_layout.addWidget(container)
+            # refresh selected sensor (if any)
+            selector = self.sensor_selectors.get(f"{team_name}_{agent_idx}")
+            if selector:
+                sensor_name = selector.currentText()
+                if sensor_name and sensor_name != "Select Sensor":
+                    self.on_sensor_selected(team_name, agent_idx, sensor_name)
 
-    #     # self.layout.addLayout(cam_layout)
-    #     # self.setLayout(self.layout)
-        
-    #     return cam_layout
+    @pyqtSlot(str, object, float)
+    def on_new_sensor_frame(self, team_name, agent_idx, sensor_name, img, timestamp):
+        """Safely update GUI from sensor thread via Qt signal."""
+        key = f"{team_name}_{agent_idx}_{sensor_name}"
+        if key not in self.cam:
+            return
 
-    # def __del__(self):
-    #     print(f"{ph.RED}QLabel (cam1) deleted{ph.RESET}")
-
-    # def get_camera(self, view_name, pos):
-    #     eye_offset = self.camera_offsets[view_name]["eye"]
-    #     target_offset = self.camera_offsets[view_name]["target"]
-    #     return self.camera_view(pos, eye_offset, target_offset)
-    
-    # def camera_view(self, pos, eye_offset, target_offset):
-    #     eye = np.array(pos) + np.array(eye_offset)
-    #     target = np.array(pos) + np.array(target_offset)
-    #     return eye.tolist(), target.tolist()
-
-    # def update_views(self, pos, team_name, agent_num):
-    #     def render_camera(eye, target):
-    #         view = p.computeViewMatrix(eye, target, [0, 0, 1])
-    #         proj = p.computeProjectionMatrixFOV(60, 1.0, 0.1, 100)
-    #         _, _, rgb, _, _ = p.getCameraImage(320, 240, view, proj)
-    #         img = np.reshape(rgb, (240, 320, 4))[:, :, :3]
-    #         return img
-        
-    #     result_cam   = [val for key, val in self.cam.items() if f"{team_name}_{agent_num}_" in key]
-    #     result_label = [val for key, val in self.label.items() if f"{team_name}_{agent_num}_" in key]
-    #     for cam, label in zip(result_cam, result_label):
-    #         # eye, target = self.get_camera(label, pos)
-        
-    #         top_eye, top_target = self.get_camera("top", pos)
-    #         side_eye, side_target = self.get_camera("side", pos)
-    #         front_eye, front_target = self.get_camera("front", pos)
-        
-    #         top_img  = render_camera(top_eye, top_target)
-    #         side_img = render_camera(side_eye, side_target)
-    #         front_img = render_camera(front_eye, front_target)
-
-    #         def to_qimage(img):
-    #             height, width, channels = img.shape
-    #             bytes_per_line = channels * width
-    #             return QImage(img.tobytes(), width, height, bytes_per_line, QImage.Format_RGB888)
-            
-    #         cam.setPixmap(QPixmap.fromImage(to_qimage(top_img)))
-    #         cam.setPixmap(QPixmap.fromImage(to_qimage(side_img)))
-    #         cam.setPixmap(QPixmap.fromImage(to_qimage(front_img)))
-    #     # for cam in self.cam:
-    #     #         cam.setPixmap(QPixmap.fromImage(to_qimage(top_img)))
-    #     # self.top_cam.setPixmap(QPixmap.fromImage(to_qimage(top_img)))
-    #     # self.side_cam.setPixmap(QPixmap.fromImage(to_qimage(side_img)))
-    #     # self.front_cam.setPixmap(QPixmap.fromImage(to_qimage(front_img)))
+        try:
+            h, w, c = img.shape
+            qimg = QImage(img.tobytes(), w, h, c * w, QImage.Format_RGB888)
+            self.cam[key].setPixmap(QPixmap.fromImage(qimg))
+        except Exception as e:
+            print(f"[GUI] Error updating {key}: {e}")

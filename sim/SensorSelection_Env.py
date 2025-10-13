@@ -14,6 +14,7 @@ from gui.gui import CameraViewer
 import time
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtGui import QImage, QPixmap, QFont
+from PyQt5.QtCore import Qt, QTimer
 import sim.print_helpers as ph
 
 # class CameraViewer(QWidget):
@@ -150,15 +151,17 @@ class SensorSelection_Env(gym.Env):
         with open(self.config['scene']['terrain']) as t:
             terrain_data = json.load(t)
         self.terrain = terrain_data
-        
-        # Action space: discrete 4-directional movement
-        self.action_space = spaces.Discrete(4)
-        # Observation space: [agent_x, agent_y, goal_x, goal_y]
-        self.observation_space = spaces.Box(low=-10, high=10, shape=(5,), dtype=np.float32)
 
         self.blue_team = TEAM.Team(team_name="blue",config=self.config['blue_agent'])
         self.red_team = TEAM.Team(team_name="red",config=self.config['red_agent'])
 
+        # Action space: discrete 4-directional movement
+        num_sensors = self.blue_team.getNumSensors()
+        sensor_combinations = 2**num_sensors[0] - 1
+        self.action_space = spaces.MultiDiscrete([sensor_combinations] * self.blue_team.Num_agents)
+
+        # Observation space: [agent_x, agent_y, goal_x, goal_y]
+        self.observation_space = spaces.Box(low=-10, high=10, shape=(5,), dtype=np.float32)
         self.goal_pos = np.zeros(2)
 
         # Load Camera Views
@@ -199,6 +202,7 @@ class SensorSelection_Env(gym.Env):
         self.env = ENV.Environment(self.terrain)
         # Unfreeze the GUI
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
+        # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         
         """ Load the agents"""
         for agent in self.blue_team.agents:
@@ -227,8 +231,16 @@ class SensorSelection_Env(gym.Env):
         return np.array([pos[0], pos[1], pos[2], self.goal_pos[0], self.goal_pos[1]], dtype=np.float32)
 
     def step(self, action):
-        agent_pos, _ = p.getBasePositionAndOrientation(self.blue_team.agents[0].id, physicsClientId=self.physics_client)
-        self.blue_team.agents[0].position[:] = np.array(agent_pos).reshape(3,1)
+        # Step 1: Get agent states
+        blue_states = self.blue_team.get_states(self.physics_client)
+        red_states = self.red_team.get_states(self.physics_client)
+        
+        # Step 2: Select the sensor set
+        self.blue_team.assignSenor(action)
+
+        # Step 3: Choose the dynamics inputs
+        
+        # Step 4: Move the agent
         
         # Interpret action
         dx, dy = 0, 0
@@ -244,11 +256,11 @@ class SensorSelection_Env(gym.Env):
         if self.camera_viewer["blue"].isVisible() and self.camera_viewer["red"].isVisible():
             for idx, agent in enumerate(self.blue_team.agents):
                 pos, _ = p.getBasePositionAndOrientation(agent.id, physicsClientId=self.physics_client)
-                self.camera_viewer["blue"].update_views(pos=pos, team_name="blue", agent_num=idx)
+                self.camera_viewer["blue"].update_fixed_views(pos=pos, team_name="blue", agent_idx=idx)
 
             for idx, agent in enumerate(self.red_team.agents):
                 pos, _ = p.getBasePositionAndOrientation(agent.id, physicsClientId=self.physics_client)
-                self.camera_viewer["red"].update_views(pos=pos, team_name="red", agent_num=idx)
+                self.camera_viewer["red"].update_fixed_views(pos=pos, team_name="red", agent_idx=idx)
         time.sleep(self.sim_dt)
 
         obs = self._get_observation()
@@ -271,27 +283,9 @@ class SensorSelection_Env(gym.Env):
         self.camera_viewer["red"].add_team(self.red_team,self.red_team.team)
         self.camera_viewer["blue"].show()
         self.camera_viewer["red"].show()
+        self.camera_viewer["blue"].start_auto_refresh(interval_ms=500)
+        self.camera_viewer["red"].start_auto_refresh(interval_ms=500)
+
+
     
-    # def add_agent_views(self):
-    #     # Put these in the teams class
-    #     self.app = QApplication(sys.argv)
-    #     self.camera_viewer = CameraViewer()
-    #     self.camera_viewer.show()
-    #     """ Blue Team Camera """
-    #     # Top View
-    #     self.camera_viewer.add_camera("top",None,None)
-    #     # Side View
-    #     self.camera_viewer.add_camera("side",None,None)
-    #     # Front View
-    #     self.camera_viewer.add_camera("front",None,None)
-
-
-    #     """ Red Team Camera """
-    #     # Top View
-    #     self.camera_viewer.add_camera("top",None,None)
-    #     # Side View
-    #     self.camera_viewer.add_camera("side",None,None)
-    #     # Front View
-    #     self.camera_viewer.add_camera("front",None,None)
-
-
+    
