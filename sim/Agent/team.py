@@ -21,8 +21,6 @@ class Team:
         # Assign team color
         self.team_color = self.config.get("color", [0.3,0.3,0.3,1])
 
-        # Initialize team cameras
-
     def _reset_states(self,terrain_bound=(None,None),physicsClient=None):
         for agent in self.agents:
             agent._reset_states(terrain_bound=terrain_bound,physicsClient=physicsClient,team=self.team_color)
@@ -39,3 +37,21 @@ class Team:
         for key in self.config.keys():
             if "agent" in key:
                 self.Num_agents += 1
+
+    def getNumSensors(self):
+        self.Num_sensors = []
+        # get the number of agents from the dict keys
+        for agent in self.agents:
+            self.Num_sensors.append(len(agent.sensors))
+        return self.Num_sensors
+
+    def get_states(self, physics_client):
+        states = {}
+        for idx, agent in enumerate(self.agents):
+            pos, ori, vel, ang_rate = agent.get_states(physics_client)
+            states[idx] = {"pos": pos, "ori": ori, "vel": vel, "ang_rate": ang_rate}
+        return states
+    
+    def assignSenor(self,action):
+        for agent, act in zip(self.agents,action):
+            agent.assignSenor(act)

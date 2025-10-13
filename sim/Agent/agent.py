@@ -17,14 +17,21 @@ class Agent:
         self.angular_rates = np.zeros((3,1))
         self.mass = 1
         self.inertia = np.eye(3)
-        self.has_sensor = False
         self.tf = {}
-        if self.has_sensor:
-            self.tf['body2Sensor'] = [Rot.from_matrix(np.eye(3)),np.zeros((3,1))]
         self.filepath = filepath
         self.max_vel = 1
-
-
+        with open(self.filepath, "r") as f:
+            config_data = json.load(f)
+        self.config = config_data
+        sensors_cfg = self.config.get("sensors", {})
+        if sensors_cfg:
+            self.has_sensor = True
+            self.config_sensors(sensors_cfg)
+            self.init_sensor_set()
+            self.assignSenor(1)
+            self.active_sensor_set = 1
+        else:
+            self.has_sensor = False
         self._update_states()
 
     def _update_states(self):
@@ -36,8 +43,8 @@ class Agent:
         elif not x and not terrain_bound.any():
             print("neither the state nor the terrain bounds are defined, need to fill out")
         else:
-            self.position[:2] = np.array(terrain_bound).reshape((2,1)) * np.random.uniform(low=0.0, high=0.60, size=(2,1))
-            self.position[-1] = 10
+            self.position[:2] = np.array(terrain_bound).reshape((2,1)) * np.random.uniform(low=0.0, high=0.20, size=(2,1))
+            self.position[-1] = 3
             self.velocity = self.max_vel * np.random.uniform(low=0.0, high=1.0, size=(3,1))
             self.orientation = np.zeros((3,1))
             self.angular_rates = np.zeros((3,1))
@@ -73,6 +80,12 @@ class Agent:
 
         # Load the sensors
         sensors_cfg = self.config.get("sensors", {})
+        if sensors_cfg:
+            self.config_sensors(sensors_cfg)
+        else:
+            self.sensors = None
+        
+    def config_sensors(self,sensors_cfg):
         self.sensors = []
         sensor_mounts = {}
 
@@ -84,11 +97,31 @@ class Agent:
             # sensor_path = sensor_rel if os.path.isabs(sensor_rel) else os.path.join(base_dir, sensor_rel)
             # sensor_path = os.path.abspath(sensor_path)
 
-            sensor = load_sensor_from_file(sensor_path)  # returns a subclass instance, e.g. Camera(...)
+            sensor = load_sensor_from_file(sensor_path, name)  # returns a subclass instance, e.g. Camera(...)
+            sensor.attach_to_agent(self)
+            sensor.tf[name] = {"pos": entry.get("sensor_pos", [0, 0, 0]), "rpy": entry.get("sensor_rpy", [0, 0, 0])}
             self.sensors.append(sensor)
-
+            self.tf["body2Sensor"] = [ Rot.from_euler('xyz',self.sensors[-1].tf[name]['rpy'],degrees=True), self.sensors[-1].tf[name]['pos'] ]
             # optional mount info (e.g., for later attaching transforms)
-            sensor_mounts[name] = {
-                "pos": entry.get("sensor_pos", [0, 0, 0]),
-                "rpy": entry.get("sensor_rpy", [0, 0, 0])
-            }
+            
+        self.sensors[0].start_capture(rate_hz=self.sensors[0]._rate_hz) 
+
+    def init_sensor_set(self):
+        self.sensor_setcombos = {}
+        p = len(self.sensors)
+        for i in range(1, 2**p):  # skip 0 (empty set)
+            active = [self.sensors[j] for j in range(p) if (i >> j) & 1]
+            self.sensor_setcombos[i] = active
+        
+    def assignSenor(self,action):
+        self.active_sensor_set = action
+
+    def get_states(self,physics_client):
+        pos, ori = p.getBasePositionAndOrientation(self.id, physicsClientId=physics_client)
+        vel, ang_vel = p.getBaseVelocity(self.id)
+        self.position = np.array(pos).reshape((3,1))
+        self.orientation = np.array(ori).reshape((4,1))
+        self.velocity = np.array(vel).reshape((3,1))
+        self.angular_rates = np.array(ang_vel).reshape((3,1))
+        self._update_states()
+        return self.position, self.orientation, self.velocity, self.angular_rates
