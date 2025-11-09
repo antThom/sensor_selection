@@ -12,6 +12,9 @@ from PyQt5.QtGui import QPixmap, QImage, QFont
 from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal, pyqtSlot
 import numpy as np
 import pybullet as p
+from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
+import matplotlib.pyplot as plt
+import io
 
 
 class CameraViewer(QWidget):
@@ -162,7 +165,6 @@ class CameraViewer(QWidget):
                 self.label[sensor_key].setText("Selected Sensor View")
 
     def on_sensor_selected(self, team_name, agent_idx, sensor_name):
-        """Display PyBullet camera sensor when selected."""
         sensor_key = f"{team_name}_{agent_idx}_selected_sensor"
         if not sensor_name or sensor_name == "Select Sensor":
             self.cam[sensor_key].clear()
@@ -175,13 +177,69 @@ class CameraViewer(QWidget):
             return
 
         try:
-            img = selected_sensor.get_output()
-            h, w, c = img.shape
-            qimg = QImage(img.tobytes(), w, h, c * w, QImage.Format_RGB888)
-            self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
-            self.label[sensor_key].setText(f"{sensor_name.capitalize()} View")
+            data = selected_sensor.get_output()
+
+            # --- CASE 1: Camera ---
+            if isinstance(data, np.ndarray) and data.ndim == 3:
+                h, w, c = data.shape
+                qimg = QImage(data.tobytes(), w, h, c * w, QImage.Format_RGB888)
+                self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
+                self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Camera)")
+
+            # --- CASE 2: Microphone ---
+            elif isinstance(selected_sensor, MicrophoneSensor_Uniform):
+                waveform = data.flatten()
+                # Convert to spectrogram image
+                self._update_mic_plot(sensor_key, selected_sensor, waveform)
+
+                # self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
+                self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Microphone Spectrogram)")
+
+            else:
+                self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Unknown Type)")
+
         except Exception as e:
             print(f"Error rendering {sensor_name}: {e}")
+
+    # ----------------------------
+    # MICROPHONE VISUALIZATION
+    # ----------------------------
+    def _update_mic_plot(self, sensor_key, mic, waveform):
+        """Render spectrogram directly into the Qt widget (no new window)."""
+        try:
+            from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+            from matplotlib.figure import Figure
+            import io
+
+            # Create an offscreen matplotlib figure (Agg backend)
+            fig = Figure(figsize=(3, 2), dpi=100)
+            canvas = FigureCanvas(fig)
+            ax = fig.add_subplot(111)
+
+            # Plot spectrogram on this offscreen canvas
+            ax.specgram(
+                waveform,
+                Fs=mic.sample_rate,
+                NFFT=256,
+                noverlap=128,
+                cmap="viridis",
+            )
+            ax.axis("off")
+            fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+            # Render to RGBA buffer
+            canvas.draw()
+            buf = canvas.buffer_rgba()
+            width, height = fig.get_size_inches() * fig.get_dpi()
+            width, height = int(width), int(height)
+            qimg = QImage(buf, width, height, QImage.Format_RGBA8888)
+
+            # Set spectrogram image in the GUI widget
+            # print(waveform)
+            self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
+
+        except Exception as e:
+            print(f"[GUI] Spectrogram render error: {e}")
 
     # ----------------------------
     # FIXED VIEWS (TOP/SIDE/FRONT)
@@ -250,15 +308,21 @@ class CameraViewer(QWidget):
                     self.on_sensor_selected(team_name, agent_idx, sensor_name)
 
     @pyqtSlot(str, object, float)
-    def on_new_sensor_frame(self, team_name, agent_idx, sensor_name, img, timestamp):
-        """Safely update GUI from sensor thread via Qt signal."""
-        key = f"{team_name}_{agent_idx}_{sensor_name}"
-        if key not in self.cam:
+    def on_new_sensor_frame(self, team_name, agent_idx, sensor_name, data, timestamp):
+        """Live update when a threaded sensor emits new_frame."""
+        sensor_key = f"{team_name}_{agent_idx}_selected_sensor"
+        agent = self.agents_map.get(f"{team_name}_{agent_idx}")
+        if not agent:
             return
 
-        try:
-            h, w, c = img.shape
-            qimg = QImage(img.tobytes(), w, h, c * w, QImage.Format_RGB888)
-            self.cam[key].setPixmap(QPixmap.fromImage(qimg))
-        except Exception as e:
-            print(f"[GUI] Error updating {key}: {e}")
+        sensor = next((s for s in agent.sensors if s.name == sensor_name), None)
+        if not sensor:
+            return
+
+        if isinstance(sensor, MicrophoneSensor_Uniform):
+            waveform = np.array(data).flatten()
+            self._update_mic_plot(sensor_key, sensor, waveform)
+        elif isinstance(data, np.ndarray) and data.ndim == 3:
+            h, w, c = data.shape
+            qimg = QImage(data.tobytes(), w, h, c * w, QImage.Format_RGB888)
+            self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))

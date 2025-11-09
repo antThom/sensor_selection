@@ -25,6 +25,9 @@ class Environment:
         print(f"Loading the terrain features: {ph.YELLOW}STARTED{ph.RESET}")
         self.load_features(config_file, base_dir)
         print(f"Loading the terrain features: {ph.GREEN}COMPLETE{ph.RESET}")
+
+        # Initialize Sound Sources List
+        self.sound_sources = []
                     
 
     def load_terrain(self,config_file, base_dir):

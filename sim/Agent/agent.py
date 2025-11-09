@@ -7,6 +7,7 @@ import pybullet_data
 from pathlib import Path
 from scipy.spatial.transform import Rotation as Rot
 from sim.Sensor.sensor import load_sensor_from_file
+from sim.Constants import *
 
 class Agent:
     def __init__(self,filepath):
@@ -33,6 +34,17 @@ class Agent:
         else:
             self.has_sensor = False
         self._update_states()
+        sound_cfg = self.config.get("sound", None)
+        if sound_cfg is not None:
+            self._init_sound(sound=sound_cfg)
+
+    def _init_sound(self,sound):
+        from sim.Sound.point_source import SoundPointSource
+        self.sound = SoundPointSource(sound_file=sound,dt=sim_dt,loop=True,position=self.position,velocity=self.velocity)
+        
+
+    def start_sound(self):
+        self.sound.start()
 
     def _update_states(self):
         self.x = np.vstack([self.position,self.orientation,self.velocity,self.angular_rates])
@@ -43,13 +55,17 @@ class Agent:
         elif not x and not terrain_bound.any():
             print("neither the state nor the terrain bounds are defined, need to fill out")
         else:
-            self.position[:2] = np.array(terrain_bound).reshape((2,1)) * np.random.uniform(low=0.0, high=0.20, size=(2,1))
+            self.position[:2] = np.array(terrain_bound/4).reshape((2,1)) * np.random.uniform(low=0.0, high=0.20, size=(2,1))
             self.position[-1] = 3
             self.velocity = self.max_vel * np.random.uniform(low=0.0, high=1.0, size=(3,1))
             self.orientation = np.zeros((3,1))
             self.angular_rates = np.zeros((3,1))
             self._update_states()
             self._load_file(physicsClient,team)
+            if hasattr(self,'sound'):
+                self.sound.pos = self.position.flatten()
+                self.sound.vel = self.velocity.flatten()
+                self.sound.set_active(True)
 
     def _load_file(self,physicsClient=None,team=None):
         # Load the agent's json 
@@ -79,11 +95,11 @@ class Agent:
 
 
         # Load the sensors
-        sensors_cfg = self.config.get("sensors", {})
-        if sensors_cfg:
-            self.config_sensors(sensors_cfg)
-        else:
-            self.sensors = None
+        # sensors_cfg = self.config.get("sensors", {})
+        # if sensors_cfg:
+        #     self.config_sensors(sensors_cfg)
+        # else:
+        #     self.sensors = None
         
     def config_sensors(self,sensors_cfg):
         self.sensors = []
@@ -104,7 +120,7 @@ class Agent:
             self.tf["body2Sensor"] = [ Rot.from_euler('xyz',self.sensors[-1].tf[name]['rpy'],degrees=True), self.sensors[-1].tf[name]['pos'] ]
             # optional mount info (e.g., for later attaching transforms)
             
-        self.sensors[0].start_capture(rate_hz=self.sensors[0]._rate_hz) 
+        # self.sensors[0].start_capture(rate_hz=self.sensors[0]._rate_hz) 
 
     def init_sensor_set(self):
         self.sensor_setcombos = {}

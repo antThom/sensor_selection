@@ -1,0 +1,11 @@
+{
+    "type": "microphone",
+    "forward": [0,0,1],
+    "input": "None",
+    "output": "wave",
+    "sample_rate": 48e3,
+    "sensitivity": 0.01,
+    "bias": 0,
+    "noise_variance": 2e-4,
+    "temperature_coef": -2e-2
+}
