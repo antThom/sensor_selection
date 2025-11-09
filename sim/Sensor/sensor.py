@@ -19,7 +19,9 @@ class Sensor(ABC):
         self.period = 1.0 / self._rate_hz
         self.last_output = None
         self.last_timestamp = None
+        self.tf       = {}
         self.signals = FrameSignal()
+        self._lock = threading.Lock()
 
 
     @abstractmethod
@@ -49,13 +51,18 @@ class Sensor(ABC):
         while self._running:
             start = time.time()
             try:
-                self.last_output = self.get_output() 
-                self.last_timestamp = start 
+                output = self.get_output()
+                with self._lock:
+                    self.last_output = output.copy()
+                    self.last_timestamp = start
+                # self.last_output = self.get_output() 
+                # self.last_timestamp = start 
             except Exception as e:
                 print(f"[Sensor] Error during capture: {e}")
             # emit frame to GUI
             try:
-                self.signals.new_frame.emit(self.name, self.last_output, self.last_timestamp)
+                with self._lock:
+                    self.signals.new_frame.emit(self.name, self.last_output, self.last_timestamp)
             except Exception as e:
                 print(f"[Sensor] Frame emit error: {e}")
             elapsed = time.time() - start
@@ -80,4 +87,7 @@ def load_sensor_from_file(filepath: str, name: str) -> Sensor:
         # Lazy import avoids circular dependency
         from sim.Sensor.Cameras.camera import Camera
         return Camera(cfg,name)
-    raise ValueError(f"Unknown sensor type: {t!r}")
+    elif sensor_type == "microphone":
+        from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
+        return MicrophoneSensor_Uniform(cfg,name)
+    raise ValueError(f"Unknown sensor type: {sensor_type!r}")

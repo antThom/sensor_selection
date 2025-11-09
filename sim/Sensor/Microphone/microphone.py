@@ -1,18 +1,34 @@
 import numpy as np
 import pybullet as p
 from scipy.signal import resample
+from sim.Sensor.sensor import Sensor
+from scipy.spatial.transform import Rotation as Rot
+import sounddevice as sd
+import soundfile as sf
+import threading
+import time
+from sim.Sound.audio_mixer import AudioMixer
+from sim.Constants import *
 
-class MicrophoneSensor_Uniform:
-    def __init__(self, position, velocity, sample_rate=44100, max_distance=50.0, attached_body=None):
-        self.pos = np.array(position) if position is not None else None
-        self.vel = velocity
-        self.attached_body = attached_body
-        # self.local_offset = np.array(local_offset)
-        self.sample_rate = sample_rate
-        self.max_distance = max_distance
-        # self.directional = directional  # future support
-        self.last_heard = None  # store last buffer (for logging or analysis)
-        self.speed_of_sound=343.0
+class MicrophoneSensor_Uniform(Sensor):
+    def __init__(self, param: dict, name: str):
+        super().__init__(param)  # keep config in base
+        self.name             = name
+        self.speed_of_sound   = speed_of_sound
+        self.forward          = param.get("forward", [0,0,1])
+        self.bias             = param.get("bias", 0)
+        self.sensitivity      = param.get("sensitivity", 0.01) # V/Pa
+        self.sample_rate      = param.get("sample_rate", 48e3) 
+        self.noise_variance   = param.get("noise_variance", 2e-3) 
+        self.temperature_coef = param.get("temperature_coef", 2e-3) 
+        self.max_distance     = param.get("max_distance", 50) 
+        self.attached_body    = True
+        self.tf               = {}
+        self.mixer            = None
+        # self.mixer            = AudioMixer(sample_rate=self.sample_rate, dt=sim_dt)
+
+    def set_audio_mixer(self, mixer):
+        self.mixer = mixer
 
     def get_world_position(self):
         if self.attached_body is not None:
@@ -26,55 +42,47 @@ class MicrophoneSensor_Uniform:
         self.pos = pos
         self.vel = vel
 
-    def sense(self, emitters, samples_per_step):
-        mic_pos = self.position
-        if mic_pos is None:
-            raise ValueError("Microphone position is undefined")
+    def get_output(self):
+        """Called by Sensor._capture_loop() in its own thread."""
+        if self.agent is None:
+            raise RuntimeError("Microphone must be attached to an agent before use.")
+        output = self.sense()
+        self.last_heard = output.copy()
+        return output.copy()
 
-        buffer = np.zeros((samples_per_step, 1), dtype=np.float32)
 
-        for emitter in emitters:
-            if emitter.current_sample >= len(emitter.waveform):
-                continue  # sound finished
+    def sense(self):
+        """Sample the current audio field from the environment mixer."""
+        if self.agent is None or self.mixer is None:
+            return np.zeros((int(self.sample_rate * sim_dt), 1), dtype=np.float32)
 
-            source_pos, source_vel = emitter.get_pos_vel()
-            distance = np.linalg.norm(source_pos - mic_pos)
-            if distance > self.max_distance:
-                continue  # too far to hear
+        # --- Compute mic world pose (consistent with Camera and other sensors) ---
+        pos_agent = self.agent.position.flatten()
+        quat_agent = (
+            self.agent.orientation.flatten().tolist()
+            if len(self.agent.orientation.flatten()) > 3
+            else p.getQuaternionFromEuler(self.agent.orientation.flatten().tolist())
+        )
+        R_agent = Rot.from_quat(quat_agent)
 
-            # Check LOS
-            if emitter.occlusion_check:
-                result = p.rayTest(source_pos.tolist(), mic_pos.tolist())[0]
-                if result[0] != -1:
-                    continue  # occluded
+        mount = self.agent.tf.get("body2Sensor", None)
+        if mount:
+            R_body2sensor, t_body2sensor = mount
+            t_body2sensor = np.array(t_body2sensor)
+        else:
+            R_body2sensor = Rot.identity()
+            t_body2sensor = np.zeros((3, 1))
 
-            # Volume attenuation
-            attenuation = emitter.volume / (distance**2 + 1e-6)
-            attenuation = min(attenuation, 1.0)
+        R_world2sensor = R_agent * R_body2sensor
+        mic_pos = pos_agent + R_world2sensor.apply(t_body2sensor.flatten())
 
-            # Get chunk
-            start = emitter.current_sample
-            end = start + samples_per_step
-            if end > len(emitter.waveform):
-                if emitter.loop:
-                    part1 = emitter.waveform[start:]
-                    part2 = emitter.waveform[:end - len(emitter.waveform)]
-                    chunk = np.concatenate([part1, part2], axis=0)
-                else:
-                    chunk = emitter.waveform[start:]
-                    if len(chunk) < samples_per_step:
-                        pad = np.zeros((samples_per_step - len(chunk), 1))
-                        chunk = np.vstack((chunk, pad))
-            else:
-                chunk = emitter.waveform[start:end]
+        # --- Query mixer for the current field at this position ---
+        buffer = self.mixer.get_field_at(mic_pos)
 
-            # Accumulate into buffer
-            buffer += chunk * attenuation
-
-        # Normalize and clip
-        buffer = np.clip(buffer, -1.0, 1.0)
+        # Store last heard buffer for RL observation or visualization
         self.last_heard = buffer.copy()
         return buffer
+
     
     def doppler_shift_factor(self,source_pos, source_vel):
         direction = np.asarray(self.pos).reshape((-1,1)) - np.array(source_pos)

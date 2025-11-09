@@ -10,6 +10,8 @@ from sim.Environment import environment as ENV
 from sim.Agent import agent as AGENT
 from sim.Agent import team as TEAM
 from sim.Sensor import sensor as SENSOR
+from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
+from sim.Sound.audio_mixer import AudioMixer
 from gui.gui import CameraViewer
 import time
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QHBoxLayout
@@ -138,10 +140,6 @@ class SensorSelection_Env(gym.Env):
         self.sim_dt      = self.config.get("sim_dt", 0.001)
         np.random.seed(self.seed)
 
-
-        
-        # time.sleep(5)
-
         # self.physics_client = p.connect(p.DIRECT) # Turn off the GUI until the environment is loaded
         self.physics_client = p.connect(p.GUI if self.render_mode else p.DIRECT)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -152,8 +150,28 @@ class SensorSelection_Env(gym.Env):
             terrain_data = json.load(t)
         self.terrain = terrain_data
 
+        # --- Initialize AudioMixer ---
+        self.audio_mixer = AudioMixer(sample_rate=44100, dt=self.sim_dt)
+
+        # Create teams
         self.blue_team = TEAM.Team(team_name="blue",config=self.config['blue_agent'])
         self.red_team = TEAM.Team(team_name="red",config=self.config['red_agent'])
+
+        
+
+        # Add all sound sources to mixer
+        for agent in self.blue_team.agents + self.red_team.agents:
+            if hasattr(agent, "sound"):
+                self.audio_mixer.add_source(agent.sound)
+        
+        # Give microphones access to the shared mixer
+        for agent in self.blue_team.agents + self.red_team.agents:
+            if getattr(agent, "has_sensor", False):
+                for sensor in agent.sensors:
+                    if isinstance(sensor, MicrophoneSensor_Uniform):
+                        sensor.mixer = self.audio_mixer
+                        # Start the threaded sampling loop
+                        sensor.start_capture(rate_hz=1.0 / self.sim_dt)
 
         # Action space: discrete 4-directional movement
         num_sensors = self.blue_team.getNumSensors()
@@ -187,6 +205,7 @@ class SensorSelection_Env(gym.Env):
         super().reset(seed=seed)
         p.resetSimulation(physicsClientId=self.physics_client)
         p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
+
         # Freeze the GUI Rendering
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
@@ -195,11 +214,9 @@ class SensorSelection_Env(gym.Env):
         # Enable Shadows
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
 
-        """ Load the Terrain"""
-        # base_dir = os.getcwd()
-        # terrain_file_name = os.path.join(base_dir,os.path.normpath(self.terrain["Layered Surface"]["Mesh"]))
-        
+        """ Load the Terrain"""        
         self.env = ENV.Environment(self.terrain)
+
         # Unfreeze the GUI
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
         # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
@@ -211,6 +228,7 @@ class SensorSelection_Env(gym.Env):
             
         for agent in self.red_team.agents:
             agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client,team=self.red_team.team_color)
+
         
         """ Set Camera """
         # Set initial camera parameters
@@ -231,10 +249,32 @@ class SensorSelection_Env(gym.Env):
         return np.array([pos[0], pos[1], pos[2], self.goal_pos[0], self.goal_pos[1]], dtype=np.float32)
 
     def step(self, action):
+        for agent in self.blue_team.agents + self.red_team.agents:
+            if getattr(agent, "sensors", []) is not None:
+                for s in getattr(agent, "sensors", []):
+                    if type(s) is MicrophoneSensor_Uniform:
+                        print("Mic running:", s._running, "rate:", s._rate_hz)
+
+            if hasattr(agent, "sound"):
+                agent.sound.pos = agent.position.flatten()
+                agent.sound.vel = agent.velocity.flatten()
+
+        # Update audio field
+        self.audio_mixer.update()
+
+        mic = self.blue_team.agents[0].sensors[-1]
+        buf = mic.sense()
+        print("Mic mean:", np.mean(buf), "max:", np.max(buf))
+        src = self.red_team.agents[0].sound
+        print("Mic pos:", mic.agent.position.flatten())
+        print("Src pos:", src.pos)
+        print("Distance:", np.linalg.norm(src.pos - mic.agent.position.flatten()))
         # Step 1: Get agent states
         blue_states = self.blue_team.get_states(self.physics_client)
         red_states = self.red_team.get_states(self.physics_client)
         
+        # p.addUserDebugLine(src.pos.tolist(), mic.agent.position.flatten().tolist(), [1, 0, 0], 2, 0.1)
+
         # Step 2: Select the sensor set
         self.blue_team.assignSenor(action)
 
@@ -251,7 +291,7 @@ class SensorSelection_Env(gym.Env):
 
         # Move agent
         p.resetBaseVelocity(self.blue_team.agents[0].id, linearVelocity=[dx, dy, 0], physicsClientId=self.physics_client)
-        p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=agent_pos)
+        p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=blue_states[0]['pos'])
         p.stepSimulation(physicsClientId=self.physics_client)
         if self.camera_viewer["blue"].isVisible() and self.camera_viewer["red"].isVisible():
             for idx, agent in enumerate(self.blue_team.agents):

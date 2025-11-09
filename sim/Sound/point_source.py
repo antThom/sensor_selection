@@ -4,69 +4,110 @@ import pybullet_data
 import time
 import json
 import os
+import threading
 from pathlib import Path
 import simpleaudio as sa
 import soundfile as sf
 import sounddevice as sd
+from sim.Constants import *
 
-class SoundPointSource():
-    def __init__(self,sound_file,dt):
-        self.pos = np.zeros((3,1))
-        self.vel = np.zeros((3,1))
+class SoundPointSource:
+    def __init__(self, sound_file, dt, loop=True, position=np.zeros((3,1)), velocity=np.zeros((3,1))):
+        self.pos = position
+        self.vel = velocity
         self.volume = 1.0
-        self.speed_of_sound = 343.0 # m/s
+        self.speed_of_sound = speed_of_sound
         self.dt = dt
-        # Loade waveform into memory
+
+        # Load waveform
         self.waveform, self.sample_rate = sf.read(str(sound_file))
         if self.waveform.ndim == 1:
-            self.waveform = np.expand_dims(self.waveform, axis=1)  # Ensure 2D shape: (samples, channels)
+            self.waveform = self.waveform[:, np.newaxis]
 
         self.samples_per_step = int(self.sample_rate * dt)
-        self.current_sample = 0
-        self.playing = False
-        self.observer_volume = 0
-        self.loop = False
-
-    def reset(self):
-        self.current_sample = 0
-        self.playing = False
-
-    def set_looping(self,loop):
         self.loop = loop
+        self.active = False
+        self.num_samples = len(self.waveform)
 
-    def set_pos_vel(self,pos,vel):
-        self.pos = pos
-        self.vel = vel
+        # Playback state
+        self.current_sample = 0
 
-    def set_volume(self,volume):
-        self.volume = volume
+    def set_active(self, is_active: bool):
+        self.active = is_active
 
-    def get_pos_vel(self):
-        return self.pos, self.vel
+    # def get_chunk(self, chunk_size):
+    #     """Return next audio chunk attenuated by distance to observer."""
+    #     if not self.active:
+    #         return np.zeros((chunk_size, self.waveform.shape[1]), dtype='float32')
 
-    def adjust_volume_for_distance(self,distance):
-        self.observer_volume = min( self.volume / (distance ** 2 + 1e-6), 1.0 )
+    #     # Compute distance attenuation
 
-    def play_current_step(self):
+    #     start = self.current_sample
+    #     end = start + chunk_size
+
+    #     if end >= self.num_samples:
+    #         if self.loop:
+    #             part1 = self.waveform[start:]
+    #             part2 = self.waveform[:end - self.num_samples]
+    #             chunk = np.concatenate([part1, part2], axis=0)
+    #             self.current_sample = end - self.num_samples
+    #         else:
+    #             chunk = np.zeros((chunk_size, self.waveform.shape[1]), dtype='float32')
+    #             self.active = False
+    #             return chunk
+    #     else:
+    #         chunk = self.waveform[start:end]
+    #         self.current_sample = end
+
+        # return chunk
+        # """Continuously feed audio data to the sounddevice stream."""
+        # chunk_size = int(self.sample_rate * self.dt)
+        # with sd.OutputStream(samplerate=self.sample_rate,
+        #                      channels=self.waveform.shape[1],
+        #                      dtype='float32') as stream:
+        #     while not self._stop.is_set():
+        #         start = self.current_sample
+        #         end = start + chunk_size
+
+        #         if end >= self.num_samples:
+        #             if self.loop:
+        #                 part1 = self.waveform[start:]
+        #                 part2 = self.waveform[:end - self.num_samples]
+        #                 chunk = np.concatenate([part1, part2], axis=0)
+        #                 self.current_sample = end - self.num_samples
+        #             else:
+        #                 chunk = self.waveform[start:]
+        #                 self._stop.set()
+        #         else:
+        #             chunk = self.waveform[start:end]
+        #             self.current_sample = end
+
+        #         with self._lock:
+        #             stream.write(chunk.astype(np.float32))
+
+        #         # Maintain simulation-like timing
+        #         time.sleep(self.dt)
+
+    def get_chunk(self, chunk_size, advance=True):
         start = self.current_sample
-        end = min(start + self.samples_per_step, len(self.waveform))
-        
-        # Handle Looping
-        if end >= len(self.waveform):
+        end = start + chunk_size
+        if end >= self.num_samples:
             if self.loop:
                 part1 = self.waveform[start:]
-                part2 = self.waveform[:end - len(self.waveform)]
+                part2 = self.waveform[:end - self.num_samples]
                 chunk = np.concatenate([part1, part2], axis=0)
-                self.current_sample = end - len(self.waveform)
-
+                if advance:
+                    self.current_sample = end - self.num_samples
             else:
-                chunk = self.waveform[start:]
-                self.current_sample = len(self.waveform)
+                chunk = np.zeros((chunk_size, self.waveform.shape[1]), dtype='float32')
+                if advance:
+                    self.active = False
+                return chunk
         else:
             chunk = self.waveform[start:end]
-            self.current_sample = end
+            if advance:
+                self.current_sample = end
+        return chunk
 
-        # Play the sound
-        sd.play(chunk, samplerate=self.sample_rate, blocking=False)
 
-        self.current_sample = end
+    
