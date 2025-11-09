@@ -27,7 +27,7 @@ class Camera(Sensor):
         self.input    = param.get("input", None)
         self.output   = param.get("output","image")
         self.encode   = param.get("encode","rgb")
-        self.up       = [0,0,1]
+        self.up       = [0,1,0]
         self.aspect   = self._WIDTH / self._HEIGHT
         self.tf       = {}
 
@@ -38,7 +38,11 @@ class Camera(Sensor):
         
         # --- Agent pose in world ---
         pos_agent = self.agent.position.flatten()
-        quat_agent = p.getQuaternionFromEuler(self.agent.orientation.flatten().tolist())
+        if len(self.agent.orientation.flatten().tolist())>3:
+            # This is a quaternion
+            quat_agent = self.agent.orientation.flatten().tolist()
+        else:
+            quat_agent = p.getQuaternionFromEuler(self.agent.orientation.flatten().tolist())
         R_agent = Rot.from_quat([quat_agent[0], quat_agent[1], quat_agent[2], quat_agent[3]])
 
         # --- Mount transform (body -> sensor) ---
