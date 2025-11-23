@@ -6,17 +6,20 @@ import pybullet as p
 import pybullet_data
 from pathlib import Path
 from scipy.spatial.transform import Rotation as Rot
+from sim.Environment.Thermal.thermal_manager import ThermalManager
 from sim.Sensor.sensor import load_sensor_from_file
 from sim.Constants import *
 
 class Agent:
-    def __init__(self,filepath):
+    def __init__(self,filepath, thermal: ThermalManager):
         print(f"{ph.GREEN}Define Agent{ph.RESET}")
         self.position = np.zeros((3,1))
         self.velocity = np.zeros((3,1))
         self.orientation = np.zeros((3,1))
         self.angular_rates = np.zeros((3,1))
         self.mass = 1
+        self.agent_id = []
+        self.thermal = thermal
         self.inertia = np.eye(3)
         self.tf = {}
         self.filepath = filepath
@@ -29,14 +32,14 @@ class Agent:
             self.has_sensor = True
             self.config_sensors(sensors_cfg)
             self.init_sensor_set()
-            self.assignSenor(1)
-            self.active_sensor_set = 1
+            self.assignSenor(2)
+            # self.active_sensor_set = 1
         else:
             self.has_sensor = False
         self._update_states()
         sound_cfg = self.config.get("sound", None)
         if sound_cfg is not None:
-            self._init_sound(sound=sound_cfg)
+            self._init_sound(sound=sound_cfg)        
 
     def _init_sound(self,sound):
         from sim.Sound.point_source import SoundPointSource
@@ -56,7 +59,7 @@ class Agent:
             print("neither the state nor the terrain bounds are defined, need to fill out")
         else:
             self.position[:2] = np.array(terrain_bound/4).reshape((2,1)) * np.random.uniform(low=0.0, high=0.20, size=(2,1))
-            self.position[-1] = 3
+            self.position[-1] = 20
             self.velocity = self.max_vel * np.random.uniform(low=0.0, high=1.0, size=(3,1))
             self.orientation = np.zeros((3,1))
             self.angular_rates = np.zeros((3,1))
@@ -80,7 +83,7 @@ class Agent:
         # base_dir = os.path.dirname(self.filepath)
         # agent_file = agent_file if os.path.isabs(agent_file) else os.path.join(base_dir, agent_file)
 
-        self.id = p.loadURDF(
+        self.agent_id = p.loadURDF(
             fileName=str(agent_file),
             basePosition=self.position.flatten().tolist(),
             baseOrientation=p.getQuaternionFromEuler(self.orientation.flatten().tolist()),
@@ -89,9 +92,11 @@ class Agent:
         )
 
         if team:
-            p.changeVisualShape(self.id, linkIndex=-1, rgbaColor=team)
+            p.changeVisualShape(self.agent_id, linkIndex=-1, rgbaColor=team)
         else:
-            p.changeVisualShape(self.id, linkIndex=-1, rgbaColor=[0.3,0.3,0.3,1])
+            p.changeVisualShape(self.agent_id, linkIndex=-1, rgbaColor=[0.3,0.3,0.3,1])
+
+        self.thermal.register_body(self.agent_id, str(agent_file), per_link=False)
 
 
         # Load the sensors
@@ -113,7 +118,7 @@ class Agent:
             # sensor_path = sensor_rel if os.path.isabs(sensor_rel) else os.path.join(base_dir, sensor_rel)
             # sensor_path = os.path.abspath(sensor_path)
 
-            sensor = load_sensor_from_file(sensor_path, name)  # returns a subclass instance, e.g. Camera(...)
+            sensor = load_sensor_from_file(sensor_path, name, self.thermal)  # returns a subclass instance, e.g. Camera(...)
             sensor.attach_to_agent(self)
             sensor.tf[name] = {"pos": entry.get("sensor_pos", [0, 0, 0]), "rpy": entry.get("sensor_rpy", [0, 0, 0])}
             self.sensors.append(sensor)
@@ -133,11 +138,14 @@ class Agent:
         self.active_sensor_set = action
 
     def get_states(self,physics_client):
-        pos, ori = p.getBasePositionAndOrientation(self.id, physicsClientId=physics_client)
-        vel, ang_vel = p.getBaseVelocity(self.id)
+        pos, ori = p.getBasePositionAndOrientation(self.agent_id, physicsClientId=physics_client)
+        vel, ang_vel = p.getBaseVelocity(self.agent_id)
         self.position = np.array(pos).reshape((3,1))
         self.orientation = np.array(ori).reshape((4,1))
         self.velocity = np.array(vel).reshape((3,1))
         self.angular_rates = np.array(ang_vel).reshape((3,1))
         self._update_states()
         return self.position, self.orientation, self.velocity, self.angular_rates
+    
+    def get_id(self):
+        return self.agent_id
