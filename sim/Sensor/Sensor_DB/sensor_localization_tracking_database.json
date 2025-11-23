@@ -1,0 +1,142 @@
+[
+  {
+    "type": "camera",
+    "model": "Intel RealSense D435",
+    "manufacturer": "Intel",
+    "features": "RGB-D depth camera for tracking/localization",
+    "link": "https://www.intelrealsense.com/depth-camera-d435/"
+  },
+  {
+    "type": "camera",
+    "model": "Stereolabs ZED 2",
+    "manufacturer": "Stereolabs",
+    "features": "Stereo camera with IMU for 3D tracking",
+    "link": "https://www.stereolabs.com/zed-2/"
+  },
+  {
+    "type": "tof",
+    "model": "PreAct Mojave",
+    "manufacturer": "PreAct",
+    "features": "High-speed ToF depth sensing",
+    "link": "https://preact-tech.com/"
+  },
+  {
+    "type": "thermal",
+    "model": "FLIR Boson 640",
+    "manufacturer": "Teledyne FLIR",
+    "features": "LWIR thermal imaging for target detection/tracking",
+    "link": "https://www.flir.com/products/boson/"
+  },
+  {
+    "type": "camera",
+    "model": "FLIR Blackfly S",
+    "manufacturer": "Teledyne FLIR",
+    "features": "Industrial global-shutter machine-vision camera",
+    "link": "https://www.flir.com/products/blackfly-s/"
+  },
+  {
+    "type": "lidar",
+    "model": "Velodyne VLP-16 Puck",
+    "manufacturer": "Velodyne",
+    "features": "3D LiDAR for outdoor target tracking",
+    "link": "https://velodynelidar.com/products/puck/"
+  },
+  {
+    "type": "lidar",
+    "model": "Ouster OS1-64",
+    "manufacturer": "Ouster",
+    "features": "High-resolution 3D LiDAR",
+    "link": "https://ouster.com/products/os1/"
+  },
+  {
+    "type": "radar",
+    "model": "TI AWR1843",
+    "manufacturer": "Texas Instruments",
+    "features": "mmWave radar for range/velocity tracking",
+    "link": "https://www.ti.com/product/AWR1843"
+  },
+  {
+    "type": "ultrasonic",
+    "model": "MaxBotix MB8450",
+    "manufacturer": "MaxBotix",
+    "features": "Ultrasonic range sensor",
+    "link": "https://www.maxbotix.com/Ultrasonic_Sensors/MB8450.htm"
+  },
+  {
+    "type": "gnss",
+    "model": "u-blox ZED-F9P",
+    "manufacturer": "u-blox",
+    "features": "RTK GNSS for precise localization",
+    "link": "https://www.u-blox.com/en/product/zed-f9p-module"
+  },
+  {
+    "type": "camera",
+    "model": "Basler acA1440-20gm",
+    "manufacturer": "Basler",
+    "features": "High-framerate industrial RGB camera",
+    "link": "https://www.baslerweb.com/en/products/cameras/area-scan-cameras/ace/prod/acA1440-20gm/"
+  },
+  {
+    "type": "event_camera",
+    "model": "Prophesee Gen4 HD",
+    "manufacturer": "Prophesee",
+    "features": "Event-based vision for high-speed tracking",
+    "link": "https://www.prophesee.ai/technology/event-based-vision/"
+  },
+  {
+    "type": "thermal",
+    "model": "FLIR Lepton 3.5",
+    "manufacturer": "Teledyne FLIR",
+    "features": "Compact thermal camera",
+    "link": "https://www.flir.com/products/lepton/"
+  },
+  {
+    "type": "microphone_array",
+    "model": "Respeaker Core v2.0",
+    "manufacturer": "Seeed Studio",
+    "features": "Microphone array for acoustic localization",
+    "link": "https://www.seeedstudio.com/ReSpeaker-Core-v2-0-p-3084.html"
+  },
+  {
+    "type": "lidar",
+    "model": "SICK LMS111",
+    "manufacturer": "SICK",
+    "features": "2D LiDAR for mapping & tracking",
+    "link": "https://www.sick.com/us/en/laser-measurement/2d-lidar-sensors/lms111/c/g325449"
+  },
+  {
+    "type": "lidar",
+    "model": "Livox Mid-40",
+    "manufacturer": "Livox",
+    "features": "Cost-effective 3D LiDAR",
+    "link": "https://www.livoxtech.com/mid-series/"
+  },
+  {
+    "type": "radar",
+    "model": "Infineon BGT24MTR12",
+    "manufacturer": "Infineon",
+    "features": "24GHz radar sensor",
+    "link": "https://www.infineon.com/cms/en/product/radar-sensor/bgt24mtr12/"
+  },
+  {
+    "type": "tof",
+    "model": "Microsoft Azure Kinect DK",
+    "manufacturer": "Microsoft",
+    "features": "Depth + RGB + IMU tracking",
+    "link": "https://azure.microsoft.com/en-us/services/kinect-dk/"
+  },
+  {
+    "type": "uwb",
+    "model": "Decawave DWM1001",
+    "manufacturer": "Qorvo",
+    "features": "UWB localization module",
+    "link": "https://www.qorvo.com/products/dwm1001-module"
+  },
+  {
+    "type": "thermal_ptz",
+    "model": "FLIR Triton PT Series",
+    "manufacturer": "Teledyne FLIR",
+    "features": "Pan-tilt thermal tracking camera",
+    "link": "https://www.flir.com/products/triton-pt-lite/"
+  }
+]

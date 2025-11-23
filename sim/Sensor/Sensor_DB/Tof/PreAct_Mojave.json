@@ -1,0 +1,30 @@
+{
+    "type": "tof",
+    "model": "PreAct Mojave",
+    "manufacturer": "PreAct Technologies",
+    "specs": {
+        "WIDTH": 640,
+        "HEIGHT": 480,
+        "fov": 80,
+        "frame_rate": 60,
+        "range_m": 20
+    },
+    "noise": {
+        "depth_stddev": 0.0015
+    },
+    "power": {
+        "voltage": 5.0,
+        "current": 0.6,
+        "power_draw": 3.0
+    },
+    "physical": {
+        "mass": 0.08,
+        "dimensions": [
+            0.05,
+            0.05,
+            0.04
+        ]
+    },
+    "cost_usd": 1000,
+    "notes": "High-speed solid-state Time-of-Flight depth sensor"
+}

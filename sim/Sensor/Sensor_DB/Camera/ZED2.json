@@ -1,0 +1,35 @@
+{
+    "type": "camera",
+    "model": "Stereolabs ZED 2",
+    "manufacturer": "Stereolabs",
+    "specs": {
+        "WIDTH": 1920,
+        "HEIGHT": 1080,
+        "fov_horz": 110,
+        "fov_vert": 70,
+        "x_focal_length": 0.035,
+        "y_focal_length": 0.035,
+        "frame_rate": 30,
+        "near": 0.3,
+        "far": 20.0
+    },
+    "noise": {
+        "pixel_stddev": 0.002,
+        "depth_stddev": 0.003
+    },
+    "power": {
+        "voltage": 5.0,
+        "current": 0.9,
+        "power_draw": 4.5
+    },
+    "physical": {
+        "mass": 0.166,
+        "dimensions": [
+            0.175,
+            0.03,
+            0.033
+        ]
+    },
+    "cost_usd": 449,
+    "notes": "Stereo RGB-D camera with IMU and depth engine onboard"
+}

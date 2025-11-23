@@ -1,0 +1,35 @@
+{
+    "type": "camera",
+    "model": "Intel RealSense D435",
+    "manufacturer": "Intel",
+    "specs": {
+        "WIDTH": 1280,
+        "HEIGHT": 720,
+        "fov_horz": 91.2,
+        "fov_vert": 65.5,
+        "x_focal_length": 1.93E-3,
+        "y_focal_length": 1.93E-3,
+        "frame_rate": 30,
+        "near": 0.1,
+        "far": 10.0
+    },
+    "noise": {
+        "pixel_stddev": 0.0015,
+        "depth_stddev": 0.0025
+    },
+    "power": {
+        "voltage": 5.0,
+        "current": 0.35,
+        "power_draw": 1.75
+    },
+    "physical": {
+        "mass": 0.072,
+        "dimensions": [
+            0.09,
+            0.025,
+            0.025
+        ]
+    },
+    "cost_usd": 200,
+    "notes": "RGB-D stereo depth camera with active IR projector"
+}

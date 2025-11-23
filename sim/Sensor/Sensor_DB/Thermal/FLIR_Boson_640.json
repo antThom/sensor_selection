@@ -1,0 +1,31 @@
+{
+    "type": "thermal",
+    "model": "FLIR Boson 640",
+    "manufacturer": "Teledyne FLIR",
+    "specs": {
+        "WIDTH": 640,
+        "HEIGHT": 512,
+        "fov_horiz": 95,
+        "frame_rate": 60,
+        "spectral_band_low": 8,
+        "spectral_band_high": 14,
+    },
+    "noise": {
+        "temperature_stddev": 0.05
+    },
+    "power": {
+        "voltage": 5.0,
+        "current": 0.3,
+        "power_draw": 1.5
+    },
+    "physical": {
+        "mass": 0.075,
+        "dimensions": [
+            0.021,
+            0.021,
+            0.011
+        ]
+    },
+    "cost_usd": 2500,
+    "notes": "LWIR thermal camera used for IR sensing and perception"
+}
