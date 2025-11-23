@@ -1,4 +1,10 @@
 {
     "agent": "bullet/bullet3/data/Quadrotor/quadrotor.urdf",
-    "sound": "generation/Sounds/Quadrotor/quadrotor_sound.wav"
+    "sound": "generation/Sounds/Quadrotor/quadrotor_sound.wav",
+    "thermal": {
+        "alpha": 5E-3,
+        "beta": 5E4,
+        "emiss": 0.7,
+        "gamma": 5E-9
+    }
 }

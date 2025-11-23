@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import threading
 import time
 import json
+from sim.Environment.Thermal.thermal_manager import ThermalManager
 from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal
 
 class FrameSignal(QObject):
@@ -79,7 +80,7 @@ class Sensor(ABC):
         print(f"[Sensor] Capture loop stopped")
 
 # Factory kept OUTSIDE the class to avoid circular imports
-def load_sensor_from_file(filepath: str, name: str) -> Sensor:
+def load_sensor_from_file(filepath: str, name: str, thermal_mgr: ThermalManager=None) -> Sensor:
     with open(filepath, "r") as f:
         cfg = json.load(f)
     sensor_type = cfg.get("type")
@@ -87,6 +88,9 @@ def load_sensor_from_file(filepath: str, name: str) -> Sensor:
         # Lazy import avoids circular dependency
         from sim.Sensor.Cameras.camera import Camera
         return Camera(cfg,name)
+    elif sensor_type == "ir_camera":
+        from sim.Sensor.Cameras.ir_camera import IRCamera
+        return IRCamera(cfg,name,thermal_mgr)
     elif sensor_type == "microphone":
         from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
         return MicrophoneSensor_Uniform(cfg,name)

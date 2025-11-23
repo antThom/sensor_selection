@@ -1,5 +1,5 @@
 {
-    "type": "camera",
+    "type": "ir_camera",
     "fov": 60,
     "WIDTH": 640,
     "HEIGHT": 512,
@@ -22,5 +22,9 @@
     "input": "None",
     "output": "image",
     "frame_rate": 1,
-    "encode": "rgb"
+    "encode": "ir",
+    "temp_min": 270.0,
+    "temp_max": 330.0,
+    "netd_K": 0.05,
+    "k_atm": 0.02
 }
