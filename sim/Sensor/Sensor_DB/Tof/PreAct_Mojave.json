@@ -3,11 +3,13 @@
     "model": "PreAct Mojave",
     "manufacturer": "PreAct Technologies",
     "specs": {
-        "WIDTH": 640,
-        "HEIGHT": 480,
-        "fov": 80,
+        "WIDTH": 320,
+        "HEIGHT": 240,
+        "fov": 70,
         "frame_rate": 60,
-        "range_m": 20
+        "range_m": 20,
+        "resolution": 77E3,
+        "depth_accuracy": "2%"
     },
     "noise": {
         "depth_stddev": 0.0015
@@ -15,10 +17,10 @@
     "power": {
         "voltage": 5.0,
         "current": 0.6,
-        "power_draw": 3.0
+        "power_draw": 1.8
     },
     "physical": {
-        "mass": 0.08,
+        "mass": 75E-3,
         "dimensions": [
             0.05,
             0.05,

@@ -8,7 +8,7 @@
         "fov_horiz": 95,
         "frame_rate": 60,
         "spectral_band_low": 8,
-        "spectral_band_high": 14,
+        "spectral_band_high": 14
     },
     "noise": {
         "temperature_stddev": 0.05
