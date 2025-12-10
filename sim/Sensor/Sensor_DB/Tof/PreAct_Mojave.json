@@ -28,5 +28,6 @@
         ]
     },
     "cost_usd": 1000,
-    "notes": "High-speed solid-state Time-of-Flight depth sensor"
+    "notes": "High-speed solid-state Time-of-Flight depth sensor",
+    "spec_sheet": "https://www.preact-tech.com/mojave"
 }

@@ -5,8 +5,12 @@
     "specs": {
         "sample_rate": 48000,
         "sensitivity": 0.025,
-        "noise_floor_db": -137,
-        "max_spl_db": 132
+        "noise_floor_db": -32,
+        "max_spl_db": 142,
+        "polar_pattern": "cardoiod",
+        "low_freq": 20,
+        "high_freq": 20E3,
+        "Bit Depth": 24
     },
     "power": {
         "voltage": 48.0,
@@ -14,13 +18,14 @@
         "power_draw": 0.096
     },
     "physical": {
-        "mass": 0.39,
+        "mass": 308E-3,
         "dimensions": [
-            0.19,
-            0.05,
-            0.05
+            52E-3,
+            52E-3,
+            189E-3
         ]
     },
     "cost_usd": 270,
-    "notes": "Studio-grade condenser mic; used for acoustic sensing"
+    "notes": "Studio-grade condenser mic; used for acoustic sensing",
+    "spec_sheet": "https://edge.rode.com/pdf/products/1184/NT1%205th%20GEN_Datasheet.pdf"
 }
