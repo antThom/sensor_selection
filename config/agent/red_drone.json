@@ -1,0 +1,4 @@
+{
+    "agent": "bullet/bullet3/data/Quadrotor/quadrotor.urdf",
+    "sound": "generation/Sounds/Quadrotor/quadrotor_sound.wav"
+}
