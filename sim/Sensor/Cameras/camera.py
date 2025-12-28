@@ -62,10 +62,6 @@ class Camera(Sensor):
         forward_world = -R_world2sensor.apply([0, 0, 1])  # camera looks along -Z in PyBullet
         target_world = pos_sensor + forward_world
 
-        # print("Camera pos:", pos_sensor)
-        # print("Camera target:", target_world)
-        # print(f"{self.name}: pos={pos_sensor}, forward={forward_world}, target={target_world}")
-
         view_matrix = p.computeViewMatrix(
             pos_sensor.tolist(),
             target_world.tolist(),
