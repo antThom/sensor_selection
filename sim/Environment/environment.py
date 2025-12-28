@@ -6,15 +6,19 @@ import pybullet as p
 import pybullet_data
 from pathlib import Path
 from shapely.geometry import Polygon, Point
+from sim.Environment.Thermal.thermal_manager import ThermalManager
 from scipy.spatial import ConvexHull
+from sim.Constants import *
 import trimesh
+import time as time_
 
 class Environment:
-    def __init__(self, terrain):
+    def __init__(self, terrain, thermal: ThermalManager, time_of_day=None ):
         self.terrain_config = terrain
         base_dir = os.getcwd()
         config_file = os.path.join(base_dir,os.path.normpath(self.terrain_config["Layered Surface"]["Mesh"]))
-        
+        self.thermal = thermal
+
         print(f"Loading the environment from {config_file}")
         # Load the terrain
         print(f"Loading the terrain: {ph.YELLOW}STARTED{ph.RESET}")
@@ -28,6 +32,9 @@ class Environment:
 
         # Initialize Sound Sources List
         self.sound_sources = []
+
+        # Initialize the sun and ambient conditions
+        
                     
 
     def load_terrain(self,config_file, base_dir):
@@ -52,7 +59,7 @@ class Environment:
             # Flatten row-major
             self.terrain['terrain_data'] = height_data.flatten()
 
-            self.terrain['terrain_shape'] = p.createCollisionShape(
+            terrain_id = p.createCollisionShape(
                 shapeType=p.GEOM_HEIGHTFIELD,
                 meshScale=[self.terrain['header']["cellsize"], self.terrain['header']["cellsize"], height_scale],
                 heightfieldTextureScaling=self.terrain['header']["ncols"] / 2,
@@ -63,7 +70,7 @@ class Environment:
 
             self.terrain['terrain'] = p.createMultiBody(
                 baseMass=0,
-                baseCollisionShapeIndex=self.terrain['terrain_shape'],
+                baseCollisionShapeIndex=terrain_id,
                 basePosition=[0, 0, self.terrain['z_offset']]
             )
 
@@ -78,8 +85,10 @@ class Environment:
         p.changeVisualShape(self.terrain['terrain'], -1, textureUniqueId=tex_id)
         p.changeVisualShape(self.terrain['terrain'], -1, rgbaColor=[1,1,1,1], specularColor=[0.1,0.1,0.1])
 
+        self.thermal.register_body(terrain_id, config_file, per_link=False)
+        self.thermal.register_body(tex_id, texture_file_name, per_link=False)
+
     def load_features(self, config_file, base_dir):
-        self.id = []
         for idx, feat in enumerate(self.terrain_config["Surface Mesh"]):
             if idx>0.0:
                 mesh_file_name = str(feat["Mesh"]).strip().strip("'\"")  # remove any stray quotes in the JSON
@@ -119,10 +128,9 @@ class Environment:
             tree_id = p.loadURDF(str(mesh_path), basePosition=[x, y, z], useFixedBase=True, useMaximalCoordinates=True)
             # Apply green color (RGB + alpha)
             # p.changeVisualShape(tree_id, linkIndex=0, rgbaColor=[0.1, 0.6, 0.1, 0.950])  # canopy
-            self.id.append(tree_id)
+            self.thermal.register_body(tree_id, str(mesh_path), per_link=True)
 
     def load_clouds(self,feat,mesh_path):
-        self.cloud_ids = []
         cloud_id = p.loadURDF(str(mesh_path), basePosition=[0,0,0], useFixedBase=True)
         
         if feat['position_type'] == "patch" or "patch" in feat:
@@ -159,8 +167,8 @@ class Environment:
             cloud_id = p.loadURDF(str(mesh_path), basePosition=[x, y, z], useFixedBase=True, useMaximalCoordinates=True)
             # Apply cloud color (RGB + alpha)
             # p.changeVisualShape(cloud_id, linkIndex=0, rgbaColor=[0.7, 0.7, 0.7, 1.0])  # canopy
-            self.id.append(cloud_id)
-
+            self.thermal.register_body(cloud_id, str(mesh_path), per_link=False)
+    
     def compute_N_from_density(self,id,density,area,N_min=5):
         # Load Mesh
         vis_data = p.getVisualShapeData(id,-1)

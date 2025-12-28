@@ -2,23 +2,35 @@
     "scene": {
         "terrain": "config/terrain/flat.json",
         "scale": 1.0,
-        "vegetation": {"tree": "config/"}
+        "time_of_day": 12,
+        "ambient_temp": 293.0,
+        "sky_temp": 260
     },
-
     "blue_agent": {
-        "color": [0,0,1,1],
+        "color": [
+            0,
+            0,
+            1,
+            1
+        ],
         "agent_1": "config/agent/basic_drone.json"
     },
-
     "red_agent": {
-        "color": [1,0,0,1],
+        "color": [
+            1,
+            0,
+            0,
+            1
+        ],
         "agent_1": "config/agent/red_drone.json"
     },
-
     "do_plots": true,
     "save_plots": true,
     "time_limit": 30.0,
     "render": true,
     "seed": 42,
-    "sim_dt": 0.001
+    "sim_dt": 0.001,
+    "ambient_temp": 293.0,
+    "sky_temp": 260.0,
+    "time_of_day": 12
 }

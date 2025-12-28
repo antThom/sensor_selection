@@ -2,9 +2,30 @@
     "agent": "bullet/bullet3/data/Quadrotor/quadrotor.urdf",
     "sensors": {
         "sensor_1": {
-            "file": "sim/Sensor/basic_microphone.json",
-            "sensor_pos": [0,0,0.05],
-            "sensor_rpy": [0,0,0]
+            "file": "sim/Sensor/basic_camera.json",
+            "sensor_pos": [
+                0,
+                0,
+                -0.05
+            ],
+            "sensor_rpy": [
+                0,
+                0,
+                0
+            ]
+        },
+        "sensor_2": {
+            "file": "sim/Sensor/basic_ir_camera.json",
+            "sensor_pos": [
+                0,
+                0,
+                -0.05
+            ],
+            "sensor_rpy": [
+                0,
+                0,
+                0
+            ]
         }
     }
 }
