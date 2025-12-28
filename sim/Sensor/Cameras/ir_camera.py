@@ -11,20 +11,7 @@ class IRCamera(Sensor):
     def __init__(self, param: dict, name: str, thermal_mgr: ThermalManager):
         super().__init__(param)  # keep config in base
         self.name    = name
-        self._fov    = param.get("fov", 60)
-        self._WIDTH  = param.get("WIDTH", 640)
-        self._HEIGHT = param.get("HEIGHT", 640)          # was WIDTH before
-        self._fx     = param.get("x_focal_length", 3.0e-2)
-        self._fy     = param.get("y_focal_length", 3.0e-2)  # y, not x
-        self._c      = param.get("center", [320, 320])
-        self._forward = param.get("forward", [0,0,1])
-        self._model   = param.get("model","pinhole")
-        self._k1      = param.get("k1", 0.0)
-        self._k2      = param.get("k2", 0.0)
-        self._k3      = param.get("k3", 0.0)
-        self._k4      = param.get("k4", 0.0)
-        self.near     = param.get("near", 0.1)
-        self.far      = param.get("far", 100.0)
+        self.extract_specs(param=param)
         self.input    = param.get("input", None)
         self.output   = param.get("output","image")
         self.encode   = param.get("encode","ir")
@@ -32,10 +19,41 @@ class IRCamera(Sensor):
         self.temp_max = param.get("temp_max",350)
         self.netd_K   = param.get("netd_K",0.05)
         self.k_atm    = param.get("k_atm",0.05)
-        self.up       = [0,1,0]
-        self.aspect   = self._WIDTH / self._HEIGHT
         self.thermal_mgr = thermal_mgr
         self.tf       = {}
+
+    def extract_specs(self,param):
+        if param.get('specs',None) is not None:
+            for specs, val in param.get('specs').items():
+                spec = specs.lower()
+                setattr(self,spec,val)
+            
+            # Define Aspect
+            if hasattr(self,"width") and hasattr(self,"height") and not hasattr(self,"aspect"):
+                setattr(self,'aspect',self.width/self.height)
+            else:
+                setattr(self,'width',640)  # Default value
+                setattr(self,'height',640) # Default value
+                setattr(self,'aspect',self.width/self.height)
+
+            # Define fov
+            if not hasattr(self,"fov_x") and hasattr(self,"x_focal_length"):
+                setattr(self,'fov_x',2*np.atan2(self.width,2*self.x_focal_length))
+            elif not hasattr(self,"fov_x") and not hasattr(self,"x_focal_length"):
+                setattr(self,'fov_x',60) # Default value
+            if not hasattr(self,"fov_y") and hasattr(self,"y_focal_length"):
+                setattr(self,'fov_y',2*np.atan2(self.height,2*self.y_focal_length))
+            elif not hasattr(self,"fov_y") and not hasattr(self,"y_focal_length"):
+                setattr(self,'fov_y',60) # Default value
+
+            # Define Near and Far Planes
+            if not hasattr(self,'near'):
+                setattr(self,'near', 0.1)
+            if not hasattr(self,'far'):
+                setattr(self,'far', 100.0)
+
+            # Define Up
+            self.up = [0,1,0]
 
     def get_output(self):
         """Render a frame given the camera position and target."""
@@ -80,7 +98,7 @@ class IRCamera(Sensor):
         p.addUserDebugText("IR_CAM", pos_sensor.tolist(), textColorRGB=[1,0,0], lifeTime=0.1)
 
         proj_matrix = p.computeProjectionMatrixFOV(
-            fov=self._fov,
+            fov=self.fov_y,
             aspect=self.aspect,
             nearVal=self.near,
             farVal=self.far
@@ -88,9 +106,9 @@ class IRCamera(Sensor):
 
         p.addUserDebugLine(pos_sensor.tolist(), target_world.tolist(), [1, 0, 0], 2, 0.1)
         _, _, _, _, seg = p.getCameraImage(
-            self._WIDTH, self._HEIGHT, view_matrix, proj_matrix, renderer=p.ER_BULLET_HARDWARE_OPENGL
+            self.width, self.height, view_matrix, proj_matrix, renderer=p.ER_BULLET_HARDWARE_OPENGL
         )
-        seg = np.asarray(seg).reshape(self._HEIGHT, self._WIDTH)
+        seg = np.asarray(seg).reshape(self.height, self.width)
         body_ids   = (seg & ((1<<24)-1))
         link_index = (seg >> 24) - 1
 

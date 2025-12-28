@@ -1,5 +1,5 @@
 {
-    "type": "ir_camera",
+    "type": "thermal",
     "fov": 60,
     "WIDTH": 640,
     "HEIGHT": 512,

@@ -1,12 +1,12 @@
 {
-    "type": "camera",
+    "type": "depth_camera",
     "model": "Intel RealSense D435",
     "manufacturer": "Intel",
     "specs": {
         "WIDTH": 1280,
         "HEIGHT": 720,
-        "fov_horz": 91.2,
-        "fov_vert": 65.5,
+        "fov_x": 91.2,
+        "fov_y": 65.5,
         "x_focal_length": 1.93E-3,
         "y_focal_length": 1.93E-3,
         "frame_rate": 30,

@@ -121,6 +121,7 @@ class SensorSelection_Env(gym.Env):
 
         # Unfreeze the GUI
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
+        p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, 0)
         # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         
         """ Load the agents"""

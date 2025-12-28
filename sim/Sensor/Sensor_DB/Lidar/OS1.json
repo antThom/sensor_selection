@@ -1,0 +1,34 @@
+{
+    "type": "lidar",
+    "model": "Ouster OS1-64",
+    "manufacturer": "Ouster",
+    "specs": {
+        "max_range": 170,
+        "min_range": 0.5,
+        "resolution_vert": 10,
+        "resolution_horiz": 1024,
+        "resolution_depth": 1E-2,
+        "rotation_rate": 10,
+        "fov_x": 360,
+        "fov_y": 42.4
+    },
+    "noise": {
+        "false_positive_rate": 1E-4
+    },
+    "power": {
+        "voltage": 12,
+        "current": "N/A",
+        "power_draw": 16
+    },
+    "physical": {
+        "mass": 522E-3,
+        "dimensions": [
+            87E-3,
+            87E-3,
+            74.2E-3
+        ]
+    },
+    "cost_usd": "N/A",
+    "notes": "High-resolution 3D LiDAR",
+    "spec_sheet": "https://data.ouster.io/downloads/datasheets/datasheet-rev7-v3p1-os1.pdf"
+}

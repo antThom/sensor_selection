@@ -58,8 +58,8 @@ class Agent:
         elif not x and not terrain_bound.any():
             print("neither the state nor the terrain bounds are defined, need to fill out")
         else:
-            self.position[:2] = np.array(terrain_bound/4).reshape((2,1)) * np.random.uniform(low=0.0, high=0.20, size=(2,1))
-            self.position[-1] = 20
+            self.position[:2] = np.array(terrain_bound/6).reshape((2,1)) * np.random.uniform(low=0.0, high=0.20, size=(2,1))
+            self.position[-1] = 25
             self.velocity = self.max_vel * np.random.uniform(low=0.0, high=1.0, size=(3,1))
             self.orientation = np.zeros((3,1))
             self.angular_rates = np.zeros((3,1))
@@ -125,7 +125,7 @@ class Agent:
             self.tf["body2Sensor"] = [ Rot.from_euler('xyz',self.sensors[-1].tf[name]['rpy'],degrees=True), self.sensors[-1].tf[name]['pos'] ]
             # optional mount info (e.g., for later attaching transforms)
             
-        # self.sensors[0].start_capture(rate_hz=self.sensors[0]._rate_hz) 
+        self.sensors[0].start_capture(rate_hz=self.sensors[0]._rate_hz) 
 
     def init_sensor_set(self):
         self.sensor_setcombos = {}

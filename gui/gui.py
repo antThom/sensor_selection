@@ -13,6 +13,11 @@ from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal, pyqtSlot
 import numpy as np
 import pybullet as p
 from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
+from sim.Sensor.Cameras.depth_camera import DepthCamera
+from sim.Sensor.Cameras.ir_camera import IRCamera
+from sim.Sensor.Cameras.camera import Camera
+from sim.Sensor.Lidar.lidar import Lidar
+
 import matplotlib.pyplot as plt
 import io
 
@@ -179,8 +184,8 @@ class CameraViewer(QWidget):
         try:
             data = selected_sensor.get_output()
 
-            # --- CASE 1: Camera ---
-            if isinstance(data, np.ndarray) and data.ndim == 3:
+            # --- CASE 1: RGB Camera ---
+            if isinstance(data, Camera):
                 h, w, c = data.shape
                 qimg = QImage(data.tobytes(), w, h, c * w, QImage.Format_RGB888)
                 self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
@@ -195,11 +200,46 @@ class CameraViewer(QWidget):
                 # self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
                 self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Microphone Spectrogram)")
 
+            # --- CASE 3: RGB + Depth Camera ---
+            elif isinstance(selected_sensor, DepthCamera):
+                rgb = data[0]
+                depth = data[1]
+
+                h, w, c = rgb.shape
+                qimg = QImage(rgb.tobytes(), w, h, c * w, QImage.Format_RGB888)
+                self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
+                self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Depth Camera)")
+
+                # print(f"Depth: {depth[0]}")
+            # --- CASE 4: IR Camera ---
+            elif isinstance(selected_sensor, IRCamera):
+                self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Thermal Camera)")
+                h, w, c = data.shape
+                qimg = QImage(data.tobytes(), w, h, c * w, QImage.Format_RGB888)
+                self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
+            
+            # --- CASE 5: LIDAR
+            elif isinstance(selected_sensor, Lidar):
+                lidar_range = data[0]
+                point_cloud = data[1]
+                # print(f"Point Cloud: {point_cloud.shape}")
+                img = self.lidar_points_to_topdown_rgb(points_sensor=point_cloud, range_sensor=lidar_range, meters_per_pixel=0.5, radius_m=80.0)
+                # print("past")
+                # lidar_range = data[0]
+                # point_cloud = data[1]
+
+                # print(f"Point Cloud: {point_cloud}")
+
+                h, w, c = img.shape
+                qimg = QImage(img.tobytes(), w, h, c * w, QImage.Format_RGB888)
+                self.cam[sensor_key].setPixmap(QPixmap.fromImage(qimg))
+                self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Lidar Point Cloud)")
+
             else:
                 self.label[sensor_key].setText(f"{sensor_name.capitalize()} (Unknown Type)")
 
         except Exception as e:
-            print(f"Error rendering {sensor_name}: {e}")
+            print(f"Error rendering {sensor_name} for {selected_sensor}: {e}")
 
     # ----------------------------
     # MICROPHONE VISUALIZATION
@@ -306,6 +346,37 @@ class CameraViewer(QWidget):
                 sensor_name = selector.currentText()
                 if sensor_name and sensor_name != "Select Sensor":
                     self.on_sensor_selected(team_name, agent_idx, sensor_name)
+
+    def lidar_points_to_topdown_rgb(self, points_sensor, range_sensor, meters_per_pixel=0.05, radius_m=20.0):
+        """
+        points_sensor: (N,3) float or (H,W,3); NaNs for invalid
+        Assumes sensor frame: +X forward, +Y left (common). Uses XY plane.
+        Returns an RGB image (uint8) with points drawn as white.
+        """
+
+        pts = np.asarray(points_sensor, dtype=np.float32).reshape(-1, 3)
+        pts = pts[np.isfinite(pts).all(axis=1)]
+        # Keep within radius
+        x, y = pts[:, 0], pts[:, 1]
+        mask = (x*x + y*y) <= (radius_m * radius_m)
+        x, y = x[mask], y[mask]
+
+        size = int(np.ceil((2 * radius_m) / meters_per_pixel))
+        img = np.zeros((size, size, 3), dtype=np.uint8)
+
+        # map (x,y) to pixels: center is sensor
+        cx = cy = size // 2
+        u = (cx + (y / meters_per_pixel)).astype(np.int32)   # y -> image x
+        v = (cy - (x / meters_per_pixel)).astype(np.int32)   # x forward -> up
+
+        ok = (u >= 0) & (u < size) & (v >= 0) & (v < size)
+        img[v[ok], u[ok]] = 255  # white points
+
+        # optional: draw axes (simple)
+        img[cy, :, 1] = 80
+        img[:, cx, 1] = 80
+        return img
+
 
     @pyqtSlot(str, object, float)
     def on_new_sensor_frame(self, team_name, agent_idx, sensor_name, data, timestamp):

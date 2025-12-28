@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import threading
 import time
 import json
+import numpy as np
 from sim.Environment.Thermal.thermal_manager import ThermalManager
 from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal
 
@@ -16,7 +17,7 @@ class Sensor(ABC):
         self.agent = None
         self._capture_thread = None
         self._running = False
-        self._rate_hz = config.get("frame_rate", 10)
+        self._rate_hz = config.get("frame_rate", 0.1)
         self.period = 1.0 / self._rate_hz
         self.last_output = None
         self.last_timestamp = None
@@ -54,8 +55,14 @@ class Sensor(ABC):
             try:
                 output = self.get_output()
                 with self._lock:
-                    self.last_output = output.copy()
-                    self.last_timestamp = start
+                    if len(output)>1:
+                        self.last_output = []
+                        for ii in np.arange(len(output)):
+                            self.last_output.append(output[ii].copy())
+                            self.last_timestamp = start
+                    else:
+                        self.last_output = output.copy()
+                        self.last_timestamp = start
                 # self.last_output = self.get_output() 
                 # self.last_timestamp = start 
             except Exception as e:
@@ -88,10 +95,16 @@ def load_sensor_from_file(filepath: str, name: str, thermal_mgr: ThermalManager=
         # Lazy import avoids circular dependency
         from sim.Sensor.Cameras.camera import Camera
         return Camera(cfg,name)
-    elif sensor_type == "ir_camera":
+    elif sensor_type == "depth_camera":
+        from sim.Sensor.Cameras.depth_camera import DepthCamera
+        return DepthCamera(cfg,name)
+    elif sensor_type == "thermal":
         from sim.Sensor.Cameras.ir_camera import IRCamera
         return IRCamera(cfg,name,thermal_mgr)
     elif sensor_type == "microphone":
         from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
         return MicrophoneSensor_Uniform(cfg,name)
+    elif sensor_type == "lidar":
+        from sim.Sensor.Lidar.lidar import Lidar
+        return Lidar(cfg,name)
     raise ValueError(f"Unknown sensor type: {sensor_type!r}")

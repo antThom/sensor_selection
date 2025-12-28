@@ -3,8 +3,10 @@ import numpy as np
 import pybullet as p
 from sim.Sensor.sensor import Sensor  # import the CLASS, not the module
 from scipy.spatial.transform import Rotation as Rot
+import cv2
+import time
 
-class Camera(Sensor):
+class DepthCamera(Sensor):
     def __init__(self, param: dict, name: str):
         super().__init__(param)  # keep config in base
         self.name    = name
@@ -97,9 +99,13 @@ class Camera(Sensor):
         )
 
         p.addUserDebugLine(pos_sensor.tolist(), target_world.tolist(), [1, 0, 0], 2, 0.1)
-        _, _, rgb, _, _ = p.getCameraImage(
+        images = p.getCameraImage(
             self.width, self.height, view_matrix, proj_matrix, renderer=p.ER_BULLET_HARDWARE_OPENGL
         )
-        img = np.reshape(rgb, (self.height, self.width, 4))[:, :, :3]
-        # timestamp = time.time()
-        return img
+
+        rgb = np.reshape(images[2], (self.height, self.width, 4))[:,:,:3]
+        depth_buffer_opengl = np.reshape(images[3], [self.width, self.height])
+        depth = self.far * self.near / (self.far - (self.far - self.near) * depth_buffer_opengl)
+
+        
+        return rgb, depth

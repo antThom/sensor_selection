@@ -1,0 +1,31 @@
+{
+    "type": "camera",
+    "model": "FLIR Blackfly S",
+    "manufacturer": "FLIR",
+    "specs": {
+        "WIDTH": 720,
+        "HEIGHT": 540,
+        "frame_rate": 522,
+        "pixel_size": 6.9,
+        "sensor_format": "1/2.9''",
+        "megapixels": 0.4,
+        "near": 0.1,
+        "far": 100.0
+    },
+    "power": {
+        "voltage": 3.3,
+        "current": 120E-3,
+        "power_draw": 3
+    },
+    "physical": {
+        "mass": 36E-3,
+        "dimensions": [
+            29E-3,
+            29E-3,
+            30E-3
+        ]
+    },
+    "cost_usd": 361.00,
+    "notes": "",
+    "spec_sheet": "https://www.teledynevisionsolutions.com/products/blackfly-s-usb3/?model=BFS-U3-04S2C-C&vertical=machine%20vision&segment=iis"
+}
