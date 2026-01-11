@@ -40,6 +40,9 @@ class SensorSelection_Env(gym.Env):
 
         # self.physics_client = p.connect(p.DIRECT) # Turn off the GUI until the environment is loaded
         self.physics_client = p.connect(p.GUI if self.render_mode else p.DIRECT)
+        # Freeze the GUI Rendering
+        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
         p.setRealTimeSimulation(0)
@@ -53,6 +56,9 @@ class SensorSelection_Env(gym.Env):
         # --- Initialize Thermal Manager ---
         self.sim_time = datetime(2025, 5, 24, self.time_of_day, 0, 0)
         self.thermal_manager = ThermalManager(ambient_K=self.ambient_temp, T_sky=self.sky_temp, time_of_day=self.sim_time)
+        
+        """ Load the Terrain"""        
+        self.env = ENV.Environment(self.terrain, time_of_day=12, thermal=self.thermal_manager)
 
         # --- Initialize AudioMixer ---
         self.audio_mixer = AudioMixer(sample_rate=44100, dt=self.sim_dt)
@@ -81,8 +87,16 @@ class SensorSelection_Env(gym.Env):
         self.action_space = spaces.MultiDiscrete([sensor_combinations] * self.blue_team.Num_agents)
 
         # Observation space: [agent_x, agent_y, goal_x, goal_y]
-        self.observation_space = spaces.Box(low=-10, high=10, shape=(5,), dtype=np.float32)
-        self.goal_pos = np.zeros(2)
+        self.observation_space = spaces.Box(low=-10, high=10, shape=(3,), dtype=np.float32)
+        
+        """ Set Camera """
+        # Set initial camera parameters
+        self.camera_distance = 2
+        self.camera_yaw = 0
+        self.camera_pitch = -30
+        
+        # Enable Shadows
+        p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
 
         # Load Camera Views
         self.init_cameras()
@@ -105,23 +119,7 @@ class SensorSelection_Env(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        p.resetSimulation(physicsClientId=self.physics_client)
-        p.setGravity(0, 0, -9.81, physicsClientId=self.physics_client)
-
-        # Freeze the GUI Rendering
-        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
-        # time.sleep(2)
-
-        # Enable Shadows
-        p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
-
-        """ Load the Terrain"""        
-        self.env = ENV.Environment(self.terrain, time_of_day=12, thermal=self.thermal_manager)
-
-        # Unfreeze the GUI
-        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
-        # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        p.setRealTimeSimulation(0)
         
         """ Load the agents"""
         for agent in self.blue_team.agents:
@@ -131,24 +129,20 @@ class SensorSelection_Env(gym.Env):
         for agent in self.red_team.agents:
             agent._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:],physicsClient=self.physics_client,team=self.red_team.team_color)
         
-        """ Set Camera """
-        # Set initial camera parameters
-        self.camera_distance = 2
-        self.camera_yaw = 0
-        self.camera_pitch = -30
+        # Unfreeze the GUI
+        p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
+
         p.resetDebugVisualizerCamera(cameraDistance=self.camera_distance, cameraYaw=self.camera_yaw, cameraPitch=self.camera_pitch, cameraTargetPosition=tuple(self.blue_team.agents[0].position.T.tolist()[0]))
-        # p.resetDebugVisualizerCamera(cameraDistance=10, cameraYaw=45, cameraPitch=-30, cameraTargetPosition=self.blue_agent[0].position.T)
         if self.camera_viewer["blue"].isVisible() and self.camera_viewer["red"].isVisible():
             self.camera_viewer["blue"].show()
             self.camera_viewer["red"].show()
-        self.goal_pos = np.random.uniform(-5, 5, size=2)
+
 
         return self._get_observation(), {}
-        # return {}
 
     def _get_observation(self):
         pos, _ = p.getBasePositionAndOrientation(self.blue_team.agents[0].agent_id, physicsClientId=self.physics_client)
-        return np.array([pos[0], pos[1], pos[2], self.goal_pos[0], self.goal_pos[1]], dtype=np.float32)
+        return np.array([pos[0], pos[1], pos[2]], dtype=np.float32)
 
     def step(self, action):
         # Update Thermal
