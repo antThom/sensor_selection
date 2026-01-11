@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 
 from .world import World
 from sim.Sensor.sensor_system import SensorSystem
@@ -28,7 +28,7 @@ class SensorSelectionEnv(gym.Env):
         max_steps: int = 1000,
         n_agents_blue: int = 1,
         n_agents_red: int = 1,
-        n_sensors_per_agent: int = 8,
+        n_sensors_per_agent: int = 1,
     ):
         super().__init__()
         self.world = world

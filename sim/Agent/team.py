@@ -5,12 +5,17 @@ import json
 from pathlib import Path
 from sim.Agent import agent as AGENT
 from sim.Environment.Thermal.thermal_manager import ThermalManager
+import yaml, json
 
 class Team:
-    def __init__(self, thermal: ThermalManager, config: dict, team_name="team"):
+    def __init__(self, client_id, config: str, thermal: ThermalManager, team_name="team", ):
         print(f"{ph.GREEN}Define {team_name} team{ph.RESET}")
         
-        self.config = config
+        self.client_id = client_id
+
+        with open(config, 'r') as file:
+            self.config = yaml.safe_load(file)
+
         self.team = team_name
         
         # Get number of agents on the team
