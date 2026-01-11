@@ -57,9 +57,9 @@ class World:
         # Delegate to existing reset hooks if present.
         # If your current code only resets during __init__, implement Team.reset()/Agent.reset() later.
         if hasattr(self.blue_team, "reset"):
-            self.blue_team.reset(seed=seed)
+            self.blue_team._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:], physicsClient=self.client_id, team=self.blue_team.team_color, seed=seed)
         if hasattr(self.red_team, "reset"):
-            self.red_team.reset(seed=seed)
+            self.red_team._reset_states(terrain_bound=self.env.terrain['terrain_bounds'][0,:], physicsClient=self.client_id, team=self.red_team.team_color, seed=seed)
 
         return self.get_state(done=False)
 

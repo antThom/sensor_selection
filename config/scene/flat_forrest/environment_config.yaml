@@ -1,0 +1,5 @@
+terrain: "config/terrain/flat.json"
+scale: 1.0
+time_of_day: "12:00:00"
+ambient_temp: 293.0
+sky_temp: 260
