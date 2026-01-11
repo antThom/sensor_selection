@@ -11,27 +11,62 @@ from scipy.spatial import ConvexHull
 from sim.Constants import *
 import trimesh
 import time as time_
+import yaml, json
 
 class Environment:
-    def __init__(self, terrain, thermal: ThermalManager, time_of_day=None ):
-        self.terrain_config = terrain
-        base_dir = os.getcwd()
-        config_file = os.path.join(base_dir,os.path.normpath(self.terrain_config["Layered Surface"]["Mesh"]))
-        self.thermal = thermal
+    def __init__(self, client_id, config):
+        self.client_id = client_id
+        with open(config, 'r') as file:
+            config_ = yaml.safe_load(file)
 
-        print(f"Loading the environment from {config_file}")
-        # Load the terrain
+        # Extract Temperatures for thermal Manager
+        self.ambient_temp = config_.get("ambient_temp", 293.15)
+        self.sky_temp = config_.get("sky_temp", 253.15)
+        self.sim_time = config_.get("time_of_day", "12:00:00")
+        self.thermal = ThermalManager(ambient_K=self.ambient_temp, T_sky=self.sky_temp, time_of_day=self.sim_time)
+
+
+        # Load the Terrain
         print(f"Loading the terrain: {ph.YELLOW}STARTED{ph.RESET}")
-        self.load_terrain(config_file, base_dir)
+        terrain_json = config_.get("terrain", None)
+        if terrain_json is None:
+            return
+        with open(terrain_json, 'r') as file:
+            self.terrain_config = json.safe_load(file)
+        terrain_file = os.path.join(base_dir,os.path.normpath(self.terrain_config["Layered Surface"]["Mesh"]))
+        base_dir = os.getcwd()
+        self.load_terrain(terrain_file, base_dir)
         print(f"Loading the terrain: {ph.GREEN}COMPLETE{ph.RESET}")
+
 
         # Load features
         print(f"Loading the terrain features: {ph.YELLOW}STARTED{ph.RESET}")
-        self.load_features(config_file, base_dir)
+        self.load_features(base_dir)
         print(f"Loading the terrain features: {ph.GREEN}COMPLETE{ph.RESET}")
 
         # Initialize Sound Sources List
         self.sound_sources = []
+
+
+    # def __init__(self, terrain, thermal: ThermalManager, time_of_day=None ):
+    #     self.terrain_config = terrain
+    #     base_dir = os.getcwd()
+    #     config_file = os.path.join(base_dir,os.path.normpath(self.terrain_config["Layered Surface"]["Mesh"]))
+    #     self.thermal = thermal
+
+    #     print(f"Loading the environment from {config_file}")
+    #     # Load the terrain
+    #     print(f"Loading the terrain: {ph.YELLOW}STARTED{ph.RESET}")
+    #     self.load_terrain(config_file, base_dir)
+    #     print(f"Loading the terrain: {ph.GREEN}COMPLETE{ph.RESET}")
+
+    #     # Load features
+    #     print(f"Loading the terrain features: {ph.YELLOW}STARTED{ph.RESET}")
+    #     self.load_features(config_file, base_dir)
+    #     print(f"Loading the terrain features: {ph.GREEN}COMPLETE{ph.RESET}")
+
+    #     # Initialize Sound Sources List
+    #     self.sound_sources = []
 
         # Initialize the sun and ambient conditions
         
@@ -88,7 +123,7 @@ class Environment:
         self.thermal.register_body(terrain_id, config_file, per_link=False)
         self.thermal.register_body(tex_id, texture_file_name, per_link=False)
 
-    def load_features(self, config_file, base_dir):
+    def load_features(self, base_dir):
         for idx, feat in enumerate(self.terrain_config["Surface Mesh"]):
             if idx>0.0:
                 mesh_file_name = str(feat["Mesh"]).strip().strip("'\"")  # remove any stray quotes in the JSON
