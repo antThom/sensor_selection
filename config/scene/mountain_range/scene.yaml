@@ -1,0 +1,46 @@
+terrain:
+  obj_path: "generation/Terrain_Generation/terrain_type/Mountain/Mountain_5Peaks_200Height_0Seed_debug.obj"
+  obj_scale: [0.25,0.25,0.25]
+  obj_pos: "center" #corner
+  texture_path: "sim/assets/textures/rock.jpg"
+  texture_scale: [0.009, 0.009]
+
+static:
+    trees:
+      obj_path: ["generation/Terrain_Generation/terrain_features/quick_tree.bam"]
+      obj_scale: [3,3,3]
+      obj_number: [30]
+      obj_orientation: [0,0,0]
+      obj_pos: "random"
+      texture_path: ["",""]
+      color: ["",""]
+    # rocks:
+    #   obj_path: ""
+    #   obj_scale: [1,1,1]
+    #   obj_number: 10
+    #   obj_orientation: [0,0,0]
+    #   obj_pos: "random"
+    #   texture_path: ""
+    #   color: ""
+
+dynamic:
+  sun:
+    obj_path: ""
+    obj_scale: [1,1,1]
+    obj_number: 1
+    obj_orientation: [0,0,0]
+    obj_pos: [0,90]
+    obj_vel: []
+    obj_vec_space: "cylinder"
+    texture_path: ""
+    color: ""
+  clouds:
+    obj_path: ["",""]
+    obj_scale: [1,1,1]
+    obj_number: 40
+    obj_orientation: [0,0,0]
+    obj_pos: "random"
+    obj_vel: [10,0,0]
+    obj_vec_space: "euclidean"
+    texture_path: ["",""]
+    color: ["",""]
