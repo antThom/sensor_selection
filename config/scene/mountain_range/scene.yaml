@@ -5,6 +5,29 @@ terrain:
   texture_path: "sim/assets/textures/rock.jpg"
   texture_scale: [0.009, 0.009]
 
+atmosphere:
+  time:
+    day_length: 24
+    time: "08:00:00"
+  sky:
+    obj_path: "models/misc/sphere"
+    obj_scale: 10000
+    obj_pos: "center"
+    color_day: [0.53, 0.81, 0.92, 1.0]
+    color_twilight: [0.95, 0.45, 0.20, 1.0]
+    color_night: [0.1, 0.1, 0.1, 1.0]
+    light_source:
+      obj_path: "models/misc/sphere"
+      obj_scale: 120
+      distance: 5000
+      color_temp: 5000
+  clouds:
+    obj_path: ""
+    obj_scale: [1,1,1]
+    obj_pos: "random"
+    texture_path: ""
+    texture_scale: []
+  
 static:
     trees:
       obj_path: ["generation/Terrain_Generation/terrain_features/quick_tree.bam"]
