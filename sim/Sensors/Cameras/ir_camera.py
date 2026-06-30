@@ -1,13 +1,14 @@
 # camera.py
 import numpy as np
 import pybullet as p
-from sim.Sensor.sensor import Sensor  # import the CLASS, not the module
+from sim.Sensors.sensor import Sensor  # import the CLASS, not the module
 from scipy.spatial.transform import Rotation as Rot
+from sim.Environment.Thermal.thermal_manager import ThermalManager
 import cv2
 import time
 
-class Camera(Sensor):
-    def __init__(self, param: dict, name: str):
+class IRCamera(Sensor):
+    def __init__(self, param: dict, name: str, thermal_mgr: ThermalManager):
         super().__init__(param)  # keep config in base
         self.name    = name
         self._fov    = param.get("fov", 60)
@@ -26,9 +27,14 @@ class Camera(Sensor):
         self.far      = param.get("far", 100.0)
         self.input    = param.get("input", None)
         self.output   = param.get("output","image")
-        self.encode   = param.get("encode","rgb")
+        self.encode   = param.get("encode","ir")
+        self.temp_min = param.get("temp_min",200)
+        self.temp_max = param.get("temp_max",350)
+        self.netd_K   = param.get("netd_K",0.05)
+        self.k_atm    = param.get("k_atm",0.05)
         self.up       = [0,1,0]
         self.aspect   = self._WIDTH / self._HEIGHT
+        self.thermal_mgr = thermal_mgr
         self.tf       = {}
 
     def get_output(self):
@@ -71,7 +77,7 @@ class Camera(Sensor):
             target_world.tolist(),
             self.up
         )
-        p.addUserDebugText("CAM", pos_sensor.tolist(), textColorRGB=[1,0,0], lifeTime=0.1)
+        p.addUserDebugText("IR_CAM", pos_sensor.tolist(), textColorRGB=[1,0,0], lifeTime=0.1)
 
         proj_matrix = p.computeProjectionMatrixFOV(
             fov=self._fov,
@@ -81,9 +87,22 @@ class Camera(Sensor):
         )
 
         p.addUserDebugLine(pos_sensor.tolist(), target_world.tolist(), [1, 0, 0], 2, 0.1)
-        _, _, rgb, _, _ = p.getCameraImage(
+        _, _, _, _, seg = p.getCameraImage(
             self._WIDTH, self._HEIGHT, view_matrix, proj_matrix, renderer=p.ER_BULLET_HARDWARE_OPENGL
         )
-        img = np.reshape(rgb, (self._HEIGHT, self._WIDTH, 4))[:, :, :3]
-        # timestamp = time.time()
-        return img
+        seg = np.asarray(seg).reshape(self._HEIGHT, self._WIDTH)
+        body_ids   = (seg & ((1<<24)-1))
+        link_index = (seg >> 24) - 1
+
+        # Query the temperature for each visible body
+        temp_map = np.zeros_like(seg, dtype=np.float32)
+        for bid in np.unique(body_ids):
+            mask = (body_ids == bid)
+            T = self.thermal_mgr.get_temperature(bid)
+            temp_map[mask] = T
+
+        # Add sensor noise & convert to displayable image
+        temp_map += np.random.normal(0, self.netd_K, temp_map.shape)
+        img8 = ((temp_map - self.temp_min)/(self.temp_max - self.temp_min)*255).clip(0,255).astype(np.uint8)
+        img_color = cv2.applyColorMap(img8, cv2.COLORMAP_BONE)
+        return img_color

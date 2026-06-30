@@ -9,14 +9,14 @@ from pathlib import Path
 import simpleaudio as sa
 import soundfile as sf
 import sounddevice as sd
-from sim.Constants import *
+from sim.utils.CONSTANTS import *
 
 class SoundPointSource:
     def __init__(self, sound_file, dt, loop=True, position=np.zeros((3,1)), velocity=np.zeros((3,1))):
         self.pos = position
         self.vel = velocity
         self.volume = 1.0
-        self.speed_of_sound = speed_of_sound
+        self.speed_of_sound = SPEED_OF_SOUND
         self.dt = dt
 
         # Load waveform

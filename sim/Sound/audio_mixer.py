@@ -4,7 +4,7 @@ import soundfile as sf
 import threading
 import time
 from sim.Sound.point_source import SoundPointSource
-from sim.Constants import *
+from sim.utils.CONSTANTS import *
 import pybullet as p
 
 class AudioMixer:
@@ -12,7 +12,7 @@ class AudioMixer:
     Mixes all SoundPointSources into a single combined audio field.
     The mixed field is stored internally and can be queried by microphones.
     """
-    def __init__(self, sample_rate=44100, dt=sim_dt):
+    def __init__(self, sample_rate=44100, dt=SIM_DT):
         self.sample_rate = sample_rate
         self.dt = dt
         self.sources = []
