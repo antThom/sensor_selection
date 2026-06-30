@@ -10,14 +10,14 @@ import os, sys
 from sim.Environment import environment as ENV
 from sim.Agent import agent as AGENT
 from sim.Agent import team as TEAM
-from sim.Sensor import sensor as SENSOR
-from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
+from sim.Sensors import sensor as SENSOR
+from sim.Sensors.Microphone.microphone import MicrophoneSensor_Uniform
 from sim.Environment.Thermal.thermal_manager import ThermalManager
 from sim.Sound.audio_mixer import AudioMixer
 from gui.gui import CameraViewer
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import QApplication
-import sim.print_helpers as ph
+import sim.utils.CONSTANTS as ph
 
 class SensorSelection_Env(gym.Env):
     def __init__(self, config_file=""):   
