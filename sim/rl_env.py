@@ -9,6 +9,7 @@ from gymnasium import spaces
 from .world import World
 from sim.Sensors.sensor_system import SensorSystem
 
+
 class SensorSelectionEnv(gym.Env):
     """Thin Gym wrapper around World + SensorSystem.
 
@@ -39,19 +40,33 @@ class SensorSelectionEnv(gym.Env):
 
         # Example action space: sensor mask per agent + movement discrete per agent.
         # You should adapt this to your real control interface.
-        self.action_space = spaces.Dict({
-            "blue_sensor_mask": spaces.MultiBinary(n_sensors_per_agent * n_agents_blue),
-            "red_sensor_mask": spaces.MultiBinary(n_sensors_per_agent * n_agents_red),
-            "blue_move": spaces.MultiDiscrete([4] * n_agents_blue),  # e.g. forward/back/left/right
-            "red_move": spaces.MultiDiscrete([4] * n_agents_red),
-        })
+        self.action_space = spaces.Dict(
+            {
+                "blue_sensor_mask": spaces.MultiBinary(
+                    n_sensors_per_agent * n_agents_blue
+                ),
+                "red_sensor_mask": spaces.MultiBinary(
+                    n_sensors_per_agent * n_agents_red
+                ),
+                "blue_move": spaces.MultiDiscrete(
+                    [4] * n_agents_blue
+                ),  # e.g. forward/back/left/right
+                "red_move": spaces.MultiDiscrete([4] * n_agents_red),
+            }
+        )
 
         # Observation: minimal example: world state + selected sensor outputs snapshot keys.
         # In practice you'd build a vector/Dict and keep it fixed-size.
-        self.observation_space = spaces.Dict({
-            "world": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),
-            "sensors": spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32),
-        })
+        self.observation_space = spaces.Dict(
+            {
+                "world": spaces.Box(
+                    low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32
+                ),
+                "sensors": spaces.Box(
+                    low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32
+                ),
+            }
+        )
 
         self._episode_steps = 0
 
@@ -96,7 +111,9 @@ class SensorSelectionEnv(gym.Env):
             return
 
         # Example: if any sensors are selected, keep them enabled; otherwise disable all.
-        any_on = bool(np.any(action.get("blue_sensor_mask", []))) or bool(np.any(action.get("red_sensor_mask", [])))
+        any_on = bool(np.any(action.get("blue_sensor_mask", []))) or bool(
+            np.any(action.get("red_sensor_mask", []))
+        )
         for name in self.sensors.all_names():
             self.sensors.set_enabled(name, any_on)
 

@@ -6,7 +6,15 @@ import numpy as np
 import sys
 
 light_temp = np.array([1000, 2700, 5500, 6500, 10000])
-light_rgb  = np.array([(255, 56, 0, 1), (255, 169, 87, 1), (255, 184, 114, 1), (255, 190, 126, 1), (255, 193, 132, 1)])
+light_rgb = np.array(
+    [
+        (255, 56, 0, 1),
+        (255, 169, 87, 1),
+        (255, 184, 114, 1),
+        (255, 190, 126, 1),
+        (255, 193, 132, 1),
+    ]
+)
 
 
 class SUN:
@@ -14,22 +22,23 @@ class SUN:
         self.sun = DirectionalLight(config["obj_path"])
         self.set_color(config["color_temp"])
         self.node = render.attachNewNode(self.sun)
-        
-        # Set the direction of sunlight 
+
+        # Set the direction of sunlight
         self.set_direction(day_length, time_of_day)
 
         render.setLight(self.node)
-       # --- Add Ambient Light for soft shadows ---
-        # ambient_light = AmbientLight("ambient_light")
-        # ambient_light.setColor(Vec4(0.3, 0.3, 0.35, 1))  # Soft blueish ambient
-        # ambient_light_node = self.render.attachNewNode(ambient_light)
-        # self.render.setLight(ambient_light_node)
+
+    # --- Add Ambient Light for soft shadows ---
+    # ambient_light = AmbientLight("ambient_light")
+    # ambient_light.setColor(Vec4(0.3, 0.3, 0.35, 1))  # Soft blueish ambient
+    # ambient_light_node = self.render.attachNewNode(ambient_light)
+    # self.render.setLight(ambient_light_node)
 
     def set_color(self, color=5500):
-        RED = np.interp(color, light_temp, light_rgb[:,0])/255
-        GREEN = np.interp(color, light_temp, light_rgb[:,1])/255
-        BLUE = np.interp(color, light_temp, light_rgb[:,2])/255
-        ALPHA = np.interp(color, light_temp, light_rgb[:,3])
+        RED = np.interp(color, light_temp, light_rgb[:, 0]) / 255
+        GREEN = np.interp(color, light_temp, light_rgb[:, 1]) / 255
+        BLUE = np.interp(color, light_temp, light_rgb[:, 2]) / 255
+        ALPHA = np.interp(color, light_temp, light_rgb[:, 3])
         self.sun.setColor(Vec4(RED, GREEN, BLUE, ALPHA))  # Warm sunlight color
 
     def set_direction(self, day_length, time_of_day, azimuth0=0.0):

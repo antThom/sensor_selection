@@ -10,21 +10,22 @@ import time
 from sim.Sound.audio_mixer import AudioMixer
 from sim.utils.CONSTANTS import *
 
+
 class MicrophoneSensor_Uniform(Sensor):
     def __init__(self, param: dict, name: str):
         super().__init__(param)  # keep config in base
-        self.name             = name
-        self.speed_of_sound   = SPEED_OF_SOUND
-        self.forward          = param.get("forward", [0,0,1])
-        self.bias             = param.get("bias", 0)
-        self.sensitivity      = param.get("sensitivity", 0.01) # V/Pa
-        self.sample_rate      = param.get("sample_rate", 48e3) 
-        self.noise_variance   = param.get("noise_variance", 2e-3) 
-        self.temperature_coef = param.get("temperature_coef", 2e-3) 
-        self.max_distance     = param.get("max_distance", 50) 
-        self.attached_body    = True
-        self.tf               = {}
-        self.mixer            = None
+        self.name = name
+        self.speed_of_sound = SPEED_OF_SOUND
+        self.forward = param.get("forward", [0, 0, 1])
+        self.bias = param.get("bias", 0)
+        self.sensitivity = param.get("sensitivity", 0.01)  # V/Pa
+        self.sample_rate = param.get("sample_rate", 48e3)
+        self.noise_variance = param.get("noise_variance", 2e-3)
+        self.temperature_coef = param.get("temperature_coef", 2e-3)
+        self.max_distance = param.get("max_distance", 50)
+        self.attached_body = True
+        self.tf = {}
+        self.mixer = None
         # self.mixer            = AudioMixer(sample_rate=self.sample_rate, dt=sim_dt)
 
     def set_audio_mixer(self, mixer):
@@ -35,7 +36,7 @@ class MicrophoneSensor_Uniform(Sensor):
             pos, orn = p.getBasePositionAndOrientation(self.attached_body)
             return np.array(pos)
         return self.pos
-    
+
     def set_pos_vel(self, pos, vel):
         if self.attached_body is not None:
             pos, orn = p.getBasePositionAndOrientation(self.attached_body)
@@ -49,7 +50,6 @@ class MicrophoneSensor_Uniform(Sensor):
         output = self.sense()
         self.last_heard = output.copy()
         return output.copy()
-
 
     def sense(self):
         """Sample the current audio field from the environment mixer."""
@@ -83,9 +83,8 @@ class MicrophoneSensor_Uniform(Sensor):
         self.last_heard = buffer.copy()
         return buffer
 
-    
-    def doppler_shift_factor(self,source_pos, source_vel):
-        direction = np.asarray(self.pos).reshape((-1,1)) - np.array(source_pos)
+    def doppler_shift_factor(self, source_pos, source_vel):
+        direction = np.asarray(self.pos).reshape((-1, 1)) - np.array(source_pos)
         direction /= np.linalg.norm(direction) + 1e-9  # unit vector
 
         v_s = np.dot(source_vel, direction)
