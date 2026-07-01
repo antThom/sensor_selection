@@ -8,12 +8,15 @@ from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal
 from dataclasses import dataclass
 from typing import Any, Optional, Callable
 
+
 class FrameSignal(QObject):
     new_frame = pyqtSignal(str, object, float)  # (sensor_name, image, timestamp)
+
 
 @dataclass
 class LatestValue:
     """Thread-safe single-slot buffer."""
+
     _lock: threading.Lock = threading.Lock()
     _value: Any = None
     _timestamp: float = 0.0
@@ -30,11 +33,13 @@ class LatestValue:
     def read(self):
         with self._lock:
             return self._value, self._timestamp, self._seq
-        
+
+
 class SensorWorker:
     """
     Runs a capture_fn at a fixed rate in its own thread and stores results in a LatestValue buffer.
     """
+
     def __init__(
         self,
         name: str,
@@ -56,7 +61,9 @@ class SensorWorker:
         if self._thread and self._thread.is_alive():
             return
         self._stop_evt.clear()
-        self._thread = threading.Thread(target=self._run, name=f"{self.name}_worker", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run, name=f"{self.name}_worker", daemon=True
+        )
         self._thread.start()
 
     def stop(self, join_timeout: float = 1.0) -> None:
@@ -101,6 +108,7 @@ class SensorWorker:
             # rate_hz <= 0: run as fast as possible (usually NOT what you want)
             time.sleep(0.0)
 
+
 class Sensor(ABC):
     def __init__(self, config: dict):
         self.config = config
@@ -115,10 +123,9 @@ class Sensor(ABC):
 
         self.last_output = None
         self.last_timestamp = None
-        self.tf       = {}
+        self.tf = {}
         self.signals = FrameSignal()
         self._lock = threading.Lock()
-
 
     @abstractmethod
     def get_output(self):
@@ -151,7 +158,6 @@ class Sensor(ABC):
 
         self._worker.start()
 
-
         # self._running = True
         # self._capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
         # self._capture_thread.start()
@@ -160,7 +166,7 @@ class Sensor(ABC):
     def capture(self):
         """Override in subclasses; returns a sample (numpy array, scalar, dict, etc.)."""
         raise NotImplementedError
-    
+
     # def _capture_loop(self):
     #     while self._running:
     #         start = time.time()
@@ -169,8 +175,8 @@ class Sensor(ABC):
     #             with self._lock:
     #                 self.last_output = output.copy()
     #                 self.last_timestamp = start
-    #             # self.last_output = self.get_output() 
-    #             # self.last_timestamp = start 
+    #             # self.last_output = self.get_output()
+    #             # self.last_timestamp = start
     #         except Exception as e:
     #             print(f"[Sensor] Error during capture: {e}")
     #         # emit frame to GUI
@@ -194,19 +200,25 @@ class Sensor(ABC):
             self._worker.stop()
         print(f"[Sensor] Capture loop stopped")
 
+
 # Factory kept OUTSIDE the class to avoid circular imports
-def load_sensor_from_file(filepath: str, name: str, thermal_mgr: ThermalManager=None) -> Sensor:
+def load_sensor_from_file(
+    filepath: str, name: str, thermal_mgr: ThermalManager = None
+) -> Sensor:
     with open(filepath, "r") as f:
         cfg = json.load(f)
     sensor_type = cfg.get("type")
     if sensor_type == "camera":
         # Lazy import avoids circular dependency
         from sim.Sensors.Cameras.camera import Camera
-        return Camera(cfg,name)
+
+        return Camera(cfg, name)
     elif sensor_type == "ir_camera":
         from sim.Sensors.Cameras.ir_camera import IRCamera
-        return IRCamera(cfg,name,thermal_mgr)
+
+        return IRCamera(cfg, name, thermal_mgr)
     elif sensor_type == "microphone":
         from sim.Sensors.Microphone.microphone import MicrophoneSensor_Uniform
-        return MicrophoneSensor_Uniform(cfg,name)
+
+        return MicrophoneSensor_Uniform(cfg, name)
     raise ValueError(f"Unknown sensor type: {sensor_type!r}")

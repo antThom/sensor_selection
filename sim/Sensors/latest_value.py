@@ -3,9 +3,11 @@ import time
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple
 
+
 @dataclass
 class LatestValue:
     """Thread-safe single-slot buffer for latest sensor output."""
+
     _lock: threading.Lock = threading.Lock()
     _value: Any = None
     _timestamp: float = 0.0

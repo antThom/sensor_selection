@@ -72,10 +72,12 @@ def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
         idx = vdata.getNumRows()
         bottom_ring.append(idx)
         _add_vertex(
-            vwriter, nwriter, twriter,
+            vwriter,
+            nwriter,
+            twriter,
             (x, y, 0.0),
             Vec3(0, 0, -1),
-            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a))
+            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a)),
         )
 
     for i in range(sides):
@@ -84,7 +86,9 @@ def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
 
     # Top cap
     top_center = vdata.getNumRows()
-    _add_vertex(vwriter, nwriter, twriter, (0.0, 0.0, height), Vec3(0, 0, 1), (0.5, 0.5))
+    _add_vertex(
+        vwriter, nwriter, twriter, (0.0, 0.0, height), Vec3(0, 0, 1), (0.5, 0.5)
+    )
 
     top_ring = []
     for i in range(sides + 1):
@@ -93,10 +97,12 @@ def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
         idx = vdata.getNumRows()
         top_ring.append(idx)
         _add_vertex(
-            vwriter, nwriter, twriter,
+            vwriter,
+            nwriter,
+            twriter,
             (x, y, height),
             Vec3(0, 0, 1),
-            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a))
+            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a)),
         )
 
     for i in range(sides):
@@ -143,7 +149,7 @@ def make_low_poly_cone(radius=0.85, height=1.7, sides=8) -> NodePath:
     return _make_geom_node("canopy_geom", vdata, prim)
 
 
-class LowPolyTree():
+class LowPolyTree:
     def __init__(
         self,
         trunk_radius=0.15,
@@ -153,7 +159,7 @@ class LowPolyTree():
         trunk_sides=6,
         canopy_sides=8,
     ):
-        
+
         self.root = NodePath("low_poly_tree")
 
         self.trunk = make_low_poly_cylinder(
@@ -231,5 +237,7 @@ if __name__ == "__main__":
     tree.set_trunk_color(0.45, 0.25, 0.12, 1.0)
     tree.set_canopy_color(0.15, 0.45, 0.15, 1.0)
     tree.root.flattenStrong()
-    filename = Path("generation","Terrain_Generation","terrain_features","quick_tree.bam")
+    filename = Path(
+        "generation", "Terrain_Generation", "terrain_features", "quick_tree.bam"
+    )
     tree.root.writeBamFile(filename)
