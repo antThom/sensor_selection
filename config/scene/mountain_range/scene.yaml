@@ -1,8 +1,8 @@
 terrain:
-  obj_path: "generation/Terrain_Generation/terrain_type/Mountain/Mountain_5Peaks_200Height_0Seed_debug.obj"
+  obj_path: "assets/Terrain/terrain_type/Mountain/Mountain_5Peaks_200Height_0Seed_debug.obj"
   obj_scale: [0.25,0.25,0.25]
   obj_pos: "center" #corner
-  texture_path: "sim/assets/textures/rock.jpg"
+  texture_path: "assets/textures/rock.jpg"
   texture_scale: [0.009, 0.009]
 
 atmosphere:
@@ -30,7 +30,7 @@ atmosphere:
   
 static:
     trees:
-      obj_path: ["generation/Terrain_Generation/terrain_features/quick_tree.bam"]
+      obj_path: ["assets/Terrain/terrain_features/quick_tree.bam"]
       obj_scale: [3,3,3]
       obj_number: [30]
       obj_orientation: [0,0,0]

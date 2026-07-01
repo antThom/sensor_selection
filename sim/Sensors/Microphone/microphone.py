@@ -1,20 +1,20 @@
 import numpy as np
 import pybullet as p
 from scipy.signal import resample
-from sim.Sensor.sensor import Sensor
+from sim.Sensors.sensor import Sensor
 from scipy.spatial.transform import Rotation as Rot
 import sounddevice as sd
 import soundfile as sf
 import threading
 import time
 from sim.Sound.audio_mixer import AudioMixer
-from sim.Constants import *
+from sim.utils.CONSTANTS import *
 
 class MicrophoneSensor_Uniform(Sensor):
     def __init__(self, param: dict, name: str):
         super().__init__(param)  # keep config in base
         self.name             = name
-        self.speed_of_sound   = speed_of_sound
+        self.speed_of_sound   = SPEED_OF_SOUND
         self.forward          = param.get("forward", [0,0,1])
         self.bias             = param.get("bias", 0)
         self.sensitivity      = param.get("sensitivity", 0.01) # V/Pa
@@ -54,7 +54,7 @@ class MicrophoneSensor_Uniform(Sensor):
     def sense(self):
         """Sample the current audio field from the environment mixer."""
         if self.agent is None or self.mixer is None:
-            return np.zeros((int(self.sample_rate * sim_dt), 1), dtype=np.float32)
+            return np.zeros((int(self.sample_rate * SIM_DT), 1), dtype=np.float32)
 
         # --- Compute mic world pose (consistent with Camera and other sensors) ---
         pos_agent = self.agent.position.flatten()
