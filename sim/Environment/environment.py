@@ -1,14 +1,14 @@
 import numpy as np
 import math
 import os 
-import sim.print_helpers as ph
+import sim.utils.CONSTANTS as ph
 import pybullet as p
 import pybullet_data
 from pathlib import Path
 from shapely.geometry import Polygon, Point
 from sim.Environment.Thermal.thermal_manager import ThermalManager
 from scipy.spatial import ConvexHull
-from sim.Constants import *
+from sim.utils.CONSTANTS import *
 import trimesh
 import time as time_
 import yaml, json

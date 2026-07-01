@@ -201,12 +201,12 @@ def load_sensor_from_file(filepath: str, name: str, thermal_mgr: ThermalManager=
     sensor_type = cfg.get("type")
     if sensor_type == "camera":
         # Lazy import avoids circular dependency
-        from sim.Sensor.Cameras.camera import Camera
+        from sim.Sensors.Cameras.camera import Camera
         return Camera(cfg,name)
     elif sensor_type == "ir_camera":
-        from sim.Sensor.Cameras.ir_camera import IRCamera
+        from sim.Sensors.Cameras.ir_camera import IRCamera
         return IRCamera(cfg,name,thermal_mgr)
     elif sensor_type == "microphone":
-        from sim.Sensor.Microphone.microphone import MicrophoneSensor_Uniform
+        from sim.Sensors.Microphone.microphone import MicrophoneSensor_Uniform
         return MicrophoneSensor_Uniform(cfg,name)
     raise ValueError(f"Unknown sensor type: {sensor_type!r}")

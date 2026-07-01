@@ -1,14 +1,14 @@
 import numpy as np
 import os 
 import json
-import sim.print_helpers as ph
+import sim.utils.CONSTANTS as ph
 import pybullet as p
 import pybullet_data
 from pathlib import Path
 from scipy.spatial.transform import Rotation as Rot
 from sim.Environment.Thermal.thermal_manager import ThermalManager
-from sim.Sensor.sensor import load_sensor_from_file
-from sim.Constants import *
+from sim.Sensors.sensor import load_sensor_from_file
+from sim.utils.CONSTANTS import *
 
 class Agent:
     def __init__(self,filepath, thermal: ThermalManager):
@@ -43,7 +43,7 @@ class Agent:
 
     def _init_sound(self,sound):
         from sim.Sound.point_source import SoundPointSource
-        self.sound = SoundPointSource(sound_file=sound,dt=sim_dt,loop=True,position=self.position,velocity=self.velocity)
+        self.sound = SoundPointSource(sound_file=sound,dt=SIM_DT,loop=True,position=self.position,velocity=self.velocity)
         
 
     def start_sound(self):
