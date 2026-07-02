@@ -2,6 +2,10 @@ import numpy as np
 
 
 class Kalman_Filters:
+    """__summary__
+    It's a kalman filter.
+    """
+
     def __init__(self, F, B, H, Q, R, x0, P0):
         self.F = F  # State transition model
         self.B = B
