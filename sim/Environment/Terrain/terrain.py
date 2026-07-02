@@ -4,7 +4,7 @@ from panda3d.core import TextureStage
 from panda3d.core import TexGenAttrib
 from pathlib import Path
 import numpy as np
-from sim.Environment.Static_Object.static_object import STATIC_OBJECT
+from sim.environment.static_object import STATIC_OBJECT
 
 
 class TERRAIN(STATIC_OBJECT):

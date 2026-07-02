@@ -4,11 +4,18 @@ The main overarching file that calls everything else.
 
 from pathlib import Path
 import argparse
-from sim.sim_world import WORLD
+from sim.world import WORLD
 
 
+# Top level hook for simulation
 def sensor_selection_simulator():
-    """The attachment point to run the program. Takes arguements."""
+    """
+    A simulator created by Anthony Thompson for the research of sensor selection algorithms,
+    particularly in the subject of tracking moving agents and objects.
+
+    Parameters:
+        --config <path>  Yaml file to load simulation settings from.
+    """
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
