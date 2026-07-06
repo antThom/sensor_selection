@@ -6,12 +6,14 @@ from typing import Dict, List, Optional, Tuple, Any
 from .latest_value import LatestValue
 from .sensor_worker import SensorWorker
 
+
 @dataclass
 class SensorHandle:
     name: str
     latest: LatestValue
     worker: SensorWorker
     rate_hz: float
+
 
 class SensorSystem:
     """Owns sensor workers and provides a lightweight observation API.
@@ -25,12 +27,22 @@ class SensorSystem:
     def __init__(self):
         self._sensors: Dict[str, SensorHandle] = {}
 
-    def register_sensor(self, name: str, capture_fn, rate_hz: float, enabled: bool = True) -> None:
+    def register_sensor(
+        self, name: str, capture_fn, rate_hz: float, enabled: bool = True
+    ) -> None:
         if name in self._sensors:
             raise ValueError(f"Sensor already registered: {name}")
         latest = LatestValue()
-        worker = SensorWorker(name=name, capture_fn=capture_fn, out=latest, rate_hz=rate_hz, enabled=enabled)
-        self._sensors[name] = SensorHandle(name=name, latest=latest, worker=worker, rate_hz=float(rate_hz))
+        worker = SensorWorker(
+            name=name,
+            capture_fn=capture_fn,
+            out=latest,
+            rate_hz=rate_hz,
+            enabled=enabled,
+        )
+        self._sensors[name] = SensorHandle(
+            name=name, latest=latest, worker=worker, rate_hz=float(rate_hz)
+        )
 
     def start_all(self) -> None:
         for h in self._sensors.values():
