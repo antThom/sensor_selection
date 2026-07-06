@@ -1,6 +1,6 @@
 import numpy as np
 import os 
-import sim.print_helpers as ph
+import sim.utils.CONSTANTS as ph
 import json
 from pathlib import Path
 from sim.Agent import agent as AGENT

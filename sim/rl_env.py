@@ -7,7 +7,7 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from .world import World
-from sim.Sensor.sensor_system import SensorSystem
+from sim.Sensors.sensor_system import SensorSystem
 
 class SensorSelectionEnv(gym.Env):
     """Thin Gym wrapper around World + SensorSystem.

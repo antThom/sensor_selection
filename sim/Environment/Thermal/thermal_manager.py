@@ -2,7 +2,7 @@ import numpy as np
 import time
 import pybullet as p
 import pybullet_data
-from sim.Constants import *
+from sim.utils.CONSTANTS import *
 
 
 class ThermalMaterialLibrary:
@@ -60,7 +60,7 @@ class ThermalManager:
             "alpha": alpha,
             "beta": beta,
             "emiss": emiss,
-            "sigma": stefan_boltzmann_constant,
+            "sigma": STEFAN_BOLTZMANN_CONSTANT,
             "gamma": gamma
         }
 
