@@ -1,5 +1,5 @@
 import numpy as np
-import os 
+import os
 import sim.utils.CONSTANTS as ph
 import json
 from pathlib import Path
@@ -7,17 +7,24 @@ from sim.Agent import agent as AGENT
 from sim.Environment.Thermal.thermal_manager import ThermalManager
 import yaml, json
 
+
 class Team:
-    def __init__(self, client_id, config: str, thermal: ThermalManager, team_name="team", ):
+    def __init__(
+        self,
+        client_id,
+        config: str,
+        thermal: ThermalManager,
+        team_name="team",
+    ):
         print(f"{ph.GREEN}Define {team_name} team{ph.RESET}")
-        
+
         self.client_id = client_id
 
-        with open(config, 'r') as file:
+        with open(config, "r") as file:
             self.config = yaml.safe_load(file)
 
         self.team = team_name
-        
+
         # Get number of agents on the team
         self.getNumAgents()
 
@@ -25,17 +32,21 @@ class Team:
         self.assignAgents(thermal)
 
         # Assign team color
-        self.team_color = self.config.get("color", [0.3,0.3,0.3,1])
+        self.team_color = self.config.get("color", [0.3, 0.3, 0.3, 1])
 
-    def _reset_states(self,terrain_bound=(None,None),physicsClient=None):
+    def _reset_states(self, terrain_bound=(None, None), physicsClient=None):
         for agent in self.agents:
-            agent._reset_states(terrain_bound=terrain_bound,physicsClient=physicsClient,team=self.team_color)
+            agent._reset_states(
+                terrain_bound=terrain_bound,
+                physicsClient=physicsClient,
+                team=self.team_color,
+            )
 
     def assignAgents(self, thermal):
         self.agents = []
         for key, val in self.config.items():
             if "agent" in key:
-                self.agents.append( AGENT.Agent(val, thermal=thermal) )
+                self.agents.append(AGENT.Agent(val, thermal=thermal))
 
     def getNumAgents(self):
         self.Num_agents = 0
@@ -57,7 +68,7 @@ class Team:
             pos, ori, vel, ang_rate = agent.get_states(physics_client)
             states[idx] = {"pos": pos, "ori": ori, "vel": vel, "ang_rate": ang_rate}
         return states
-    
-    def assignSenor(self,action):
-        for agent, act in zip(self.agents,action):
+
+    def assignSenor(self, action):
+        for agent, act in zip(self.agents, action):
             agent.assignSenor(act)
