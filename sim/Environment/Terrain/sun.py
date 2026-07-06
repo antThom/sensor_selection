@@ -1,7 +1,7 @@
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import PointLight, AmbientLight, LVector3, TextureStage, Loader
 from panda3d.core import Filename, DirectionalLight, Vec4, Vec3
-from sim.utils.string2time import string_to_time
+from sim.utils.functions import string_to_time
 import numpy as np
 import sys
 

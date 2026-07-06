@@ -1,4 +1,7 @@
 from datetime import datetime, time
+import yaml
+import os
+import json
 
 
 def string_to_time(time_str: str, fmt: str = "%H:%M:%S") -> time:
@@ -19,3 +22,18 @@ def string_to_time(time_str: str, fmt: str = "%H:%M:%S") -> time:
         return parsed_time
     except ValueError as e:
         raise ValueError(f"Invalid time format. Expected '{fmt}'. Error: {e}")
+
+def extract_yaml_configurations(file_path: str):
+    """_summary_
+    Loads a yaml file given a path
+    
+    Args:
+        file_path (str): String of file path
+
+    Returns:
+        dict: generated dictionary created from yaml
+    """
+    
+    configs = yaml.safe_load(file_path)
+    
+    return configs
