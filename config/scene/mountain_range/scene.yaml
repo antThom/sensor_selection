@@ -71,5 +71,10 @@ dynamic:
 agents:
   basicAgent:
     name: "BasicAgent"
-    config_path: "config/basic_agent.yaml"
+    config_path: "config\\agent\\basic_agent.yaml"
+    id: 1
+    position: [3,3,3]
+  basicAgent2:
+    name: "BasicAgent"
+    config_path: "config\\agent\\basic_agent.yaml"
     id: 1
