@@ -23,17 +23,33 @@ def string_to_time(time_str: str, fmt: str = "%H:%M:%S") -> time:
     except ValueError as e:
         raise ValueError(f"Invalid time format. Expected '{fmt}'. Error: {e}")
 
+
 def extract_yaml_configurations(file_path: str):
     """_summary_
     Loads a yaml file given a path
-    
+
     Args:
         file_path (str): String of file path
 
     Returns:
         dict: generated dictionary created from yaml
     """
-    
-    configs = yaml.safe_load(file_path)
-    
+
+    with open(file_path, "r") as file:
+        configs = yaml.safe_load(file)
+
     return configs
+
+
+def filter_arguements(valid_keys: dict, dict_to_filter, recuriveness=1) -> dict:
+    """_summary_
+    Filters through a dictionary and searches for valid keys.
+
+    Args:
+        valid_keys (dict): _description_
+        dict_to_filter (_type_): _description_
+        recurseiveness (int): How many levels the filter searches through
+
+    Returns:
+        dict: _description_
+    """
