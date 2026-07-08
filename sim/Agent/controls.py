@@ -5,6 +5,7 @@ Files creating the controls for using and moving the agent around.
 import agent
 from direct.task import Task
 from panda3d import ShowBase
+from panda3d import useDrive, useTrackball
 
 
 class Controls:
@@ -15,10 +16,15 @@ class Controls:
 
     def __init__(self, world):
         self.world = world  # We want to use the overhead object's ShowBase
+        
+    def register_controls(self):
+        # Registers internal tasks with the world.
+        pass
 
     def init_tasks(self):
         """Call on class initalization. Required to register controls into panda3D"""
-        pass
+        #self.world.useDrive()
+        #self.world.useTrackball()
 
     def update_camera_orentation(self, pitch, roll, yaw):
         """Sets the camera orentation. Euler overload version."""
@@ -39,3 +45,6 @@ class Controls:
 
     def get_user_input(self):
         pass
+
+    def camera_controlls(self):
+        
