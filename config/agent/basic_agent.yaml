@@ -18,7 +18,7 @@ settings:
 sensors:
   IrSensor1:
     type:
-    name:
     config_path:
 sound:
 animation:
+model: ".\\assets\\Agents\\simple_drone.obj"
