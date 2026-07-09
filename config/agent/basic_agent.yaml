@@ -14,6 +14,7 @@ settings:
   tf:
   file_path:
   max_vel:
+  scale: 0.001
   
 sensors:
   IrSensor1:
@@ -21,4 +22,4 @@ sensors:
     config_path:
 sound:
 animation:
-model: ".\\assets\\Agents\\simple_drone.obj"
+model: ".\\assets\\Agents\\Generic Quadcopter Drone.obj"

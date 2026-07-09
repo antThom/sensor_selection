@@ -73,8 +73,8 @@ agents:
     name: "BasicAgent"
     config_path: "config\\agent\\basic_agent.yaml"
     id: 1
-    position: [3,3,3]
+    position: [900,900,900]
   basicAgent2:
     name: "BasicAgent"
     config_path: "config\\agent\\basic_agent.yaml"
-    id: 1
+    id: 2
