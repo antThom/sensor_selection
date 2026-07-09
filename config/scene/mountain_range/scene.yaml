@@ -67,3 +67,14 @@ dynamic:
     obj_vec_space: "euclidean"
     texture_path: ["",""]
     color: ["",""]
+
+agents:
+  basicAgent:
+    name: "BasicAgent"
+    config_path: "config\\agent\\basic_agent.yaml"
+    id: 1
+    position: [900,900,900]
+  basicAgent2:
+    name: "BasicAgent"
+    config_path: "config\\agent\\basic_agent.yaml"
+    id: 2
