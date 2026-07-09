@@ -8,7 +8,7 @@ from panda3d.core import (
 )
 from panda3d.core import Filename, DirectionalLight, Vec4, Vec3
 import numpy as np
-from sim.utils.string2time import string_to_time
+from sim.utils.functions import string_to_time
 
 light_temp = np.array([1000, 2700, 5500, 6500, 10000])
 light_rgb = np.array(

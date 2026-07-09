@@ -5,6 +5,7 @@ from typing import Optional
 from sim.Environment.Thermal.thermal_manager import ThermalManager, ThermalMaterialLibrary
 
 
+
 class ThermalObject:
     """
     Represents a single thermally‑active entity in the simulation.
@@ -37,15 +38,16 @@ class ThermalObject:
         # Temperature (Kelvin)
         self.T: float = float(material.get("T", 293.0))
 
+    def get_temp(
+        self, dt: float, irradiance: float, ambient: float, T_sky: float
+    ) -> float:
+        # change in temperature due to radiative heat transfer
+        dT_rad = -self.gamma * self.emiss * self.sigma * (self.T**4 - T_sky**4)
 
-    def get_temp(self, dt: float, irradiance: float, ambient: float, T_sky: float) -> float:
-        #change in temperature due to radiative heat transfer
-        dT_rad = -self.gamma*self.emiss*self.sigma*(self.T**4 - T_sky**4)
-
-        #total temperature rate, utilizing the same formula as in ThermalManager.update()
+        # total temperature rate, utilizing the same formula as in ThermalManager.update()
         dTdt = self.alpha * irradiance - self.beta * (self.T - ambient) + dT_rad
 
-        #euler integration to update the temperature
+        # euler integration to update the temperature
         self.T += dTdt * dt
 
         return self.T
