@@ -47,7 +47,7 @@ class SimulationManager:
         
 
         
-    def configure_sim_model(self, object_to_change, defaults=None, **kwargs):
+    def configure_sim_model(self, object_to_change, **kwargs):
         """_summary_
         Configures the model to alternative configurations
         
@@ -58,9 +58,9 @@ class SimulationManager:
                 # Future me can do magic variable changes with match case and kwargs in
         # configuration searching and other matching
         
-        if defaults != None:
-            object_to_change.actor.setPos(object_to_change.position[1,1], object_to_change.position[2,1], object_to_change.position[3,1])
-            object_to_change.actor.setScale(object_to_change.scale)
+        # object_to_change.actor.setPos(object_to_change.position[1,1], object_to_change.position[2,1], object_to_change.position[3,1])
+        object_to_change.actor.setPos(object_to_change.position[0],object_to_change.position[1],object_to_change.position[2])
+        object_to_change.actor.setScale(object_to_change.scale)
             # object_to_change.actor.setHpr()
             
         

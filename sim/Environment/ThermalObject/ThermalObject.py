@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Optional
 
-from sim.Environment.Thermal.thermal_manager import ThermalManager, ThermalMaterialLibrary
+from sim.environment.thermal.thermal_manager import ThermalManager, ThermalMaterialLibrary
 
 
 
