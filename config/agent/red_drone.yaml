@@ -1,0 +1,7 @@
+agent: bullet/bullet3/data/Quadrotor/quadrotor.urdf
+sound: generation/Sounds/Quadrotor/quadrotor_sound.wav
+thermal:
+  alpha: 0.005
+  beta: 50000
+  emiss: 0.7
+  gamma: 5.e-9
