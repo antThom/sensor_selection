@@ -51,11 +51,15 @@ pip freeze >> requirements.txt
 ## Before You Commit
 
 1. Run all the tests
+
 2. Ensure the simulation runs
+
 ```bash
 python sensor_selection_simuator.py
 ```
+
 3. Run `black` to format your code
+
 4. Make sure to add a title to your commits with the `-m "Title"` flags
 
 ## External Tools
