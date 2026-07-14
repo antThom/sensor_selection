@@ -3,12 +3,14 @@ import math
 import numpy as np
 from typing import Optional
 
+from sim.environment.thermal.thermal_manager import ThermalManager, ThermalMaterialLibrary
+
 try:
     import pybullet as p
 except Exception:
     p = None
 
-from sim.Environment.Thermal.thermal_manager import ThermalMaterialLibrary
+
 
 
 class ThermalObject:
@@ -82,6 +84,16 @@ class ThermalObject:
         # keeps pybullet calls pinned to the correct physics client
         return {} if self.client_id is None else {"physicsClientId": self.client_id}
 
+    def get_temp(
+        self, dt: float, irradiance: float, ambient: float, T_sky: float
+    ) -> float:
+        # change in temperature due to radiative heat transfer
+        dT_rad = -self.gamma * self.emiss * self.sigma * (self.T**4 - T_sky**4)
+
+        # total temperature rate, utilizing the same formula as in ThermalManager.update()
+        dTdt = self.alpha * irradiance - self.beta * (self.T - ambient) + dT_rad
+
+        # euler integration to update the temperature
     def pos(self):
         # base links and normal links use different pybullet APIs
         if p is None: return np.zeros(3)
