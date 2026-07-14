@@ -3,6 +3,8 @@ import math
 import numpy as np
 from typing import Optional
 
+from sim.environment.thermal.thermal_manager import ThermalManager, ThermalMaterialLibrary
+
 try:
     import pybullet as p
 except Exception:
@@ -82,7 +84,7 @@ class ThermalObject:
         # keeps pybullet calls pinned to the correct physics client
         return {} if self.client_id is None else {"physicsClientId": self.client_id}
 
-<<<<<<< HEAD
+
     def get_temp(
         self, dt: float, irradiance: float, ambient: float, T_sky: float
     ) -> float:
@@ -93,7 +95,7 @@ class ThermalObject:
         dTdt = self.alpha * irradiance - self.beta * (self.T - ambient) + dT_rad
 
         # euler integration to update the temperature
-=======
+
     def pos(self):
         # base links and normal links use different pybullet APIs
         if p is None: return np.zeros(3)
@@ -196,7 +198,7 @@ class ThermalObject:
         dT_internal = self.heat_watts/self.therm_mass
         dTdt = dT_sun + dT_conv + dT_rad + dT_contact + dT_internal
 
->>>>>>> upstream/panda3_env
+
         self.T += dTdt * dt
         # saved for debugging/tuning, e.g. inspect why one object got hotter
         self.last_terms = {"sun": dT_sun, "conv": dT_conv, "rad": dT_rad, "contact": dT_contact, "internal": dT_internal, "shade": shade, "air": air}
