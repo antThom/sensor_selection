@@ -1,0 +1,25 @@
+%YAML 1.2
+---
+name:
+id:
+
+settings:
+  position: [0, 0, 0]
+  velocity:
+  orientation:
+  angular_rates:
+  mass:
+  agent_id:
+  thermal:
+  tf:
+  file_path:
+  max_vel:
+  scale: 0.001
+  
+sensors:
+  IrSensor1:
+    type:
+    config_path:
+sound:
+animation:
+model: ".\\assets\\Agents\\Generic Quadcopter Drone.obj"
