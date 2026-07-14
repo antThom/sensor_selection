@@ -24,3 +24,5 @@ temp_min: 270
 temp_max: 330
 netd_K: 0.05
 k_atm: 0.02
+
+model: "assets/"

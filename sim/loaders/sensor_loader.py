@@ -1,5 +1,7 @@
 """File for holding the SensorLoader class and its utilities"""
 
+from sim.sensors.sensor import SensorType
+from sim.sensors.dummy_sensor import DummySensor
 
 class SensorLoader:
     """_summary_
@@ -11,7 +13,7 @@ class SensorLoader:
     def __init__(self):
         pass
 
-    def create_sensor(self, name, type, *args, **kwargs):
+    def create_sensor(self, name, type, config, *args, **kwargs):
         """_summary_
         Given a set of configurations, will generate a sensor object
         Returns:
@@ -29,6 +31,9 @@ class SensorLoader:
                 pass
             case "Microphone":
                 pass
+            case "dummy":
+                sensor = DummySensor()
+                sensor.set_attributes(config)
             case _:
                 pass
                 # Nothing matched, raise an error

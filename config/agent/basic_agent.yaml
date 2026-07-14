@@ -18,8 +18,9 @@ settings:
   
 sensors:
   IrSensor1:
-    type:
-    config_path:
+    type: "dummy"
+    config_path: .\\"config\\sensors\\dummy_sensor.yaml"
+    model: ".\\assets\\Agents\\Basic Drone\\simple_drone.obj"
 sound:
 animation:
 model: ".\\assets\\Agents\\Generic Quadcopter Drone.obj"

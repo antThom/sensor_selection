@@ -5,7 +5,7 @@ This loads camera and agent controls (agents haven't been implemented yet)
 from math import pi, sin, cos
 
 from sim.agent.agent import Agent
-from sim.utils.functions import extract_yaml_configurations
+from sim.utils.functions import extract_yaml_configurations, set_attr_from_configuration
 
 from sim.environment.ThermalObject.ThermalObject import ThermalObject
 
@@ -34,8 +34,8 @@ class AgentLoader:
             new_agent = Agent(self.config["agents"][agent_config]["id"])
 
             # Set configurations twice: once for the template file and second for the top level config
-            self._set_attr_from_configuration(new_agent, agent_config_file)
-            self._set_attr_from_configuration(
+            set_attr_from_configuration(new_agent, agent_config_file)
+            set_attr_from_configuration(
                 new_agent, self.config["agents"][agent_config]
             )
 
@@ -53,17 +53,19 @@ class AgentLoader:
 
             # Sensor loading is a future problem, but here is the code to do so
 
-            # # load sensors (sensor loader will deal with it)
-            # for sensor_config in agent_config_file["sensors"]:
-            #     new_sensor = self.world.sensor_loader.create_sensor(
-            #         sensor_config["name"], sensor_config["type"], sensor_config)
+            # load sensors (sensor loader will deal with it)
+            for sensor_config in agent_config_file["sensors"]:
+                new_sensor = self.world.sensor_loader.create_sensor(
+                    sensor_config, 
+                    agent_config_file["sensors"][sensor_config]["type"], 
+                    agent_config_file["sensors"][sensor_config])
 
-            #     # magic sensor configuration??????
-            #     new_agent.add_sensor(new_sensor, sensor_config)
+                # magic sensor configuration??????
+                new_agent.add_sensor(new_sensor, sensor_config)
 
-            #     sim_man.generate_simulation_node(new_sensor, sensor_config)
-            #     sim_man.cofigure_sim_model(new_sensor)
-            #     sim_man.parent_objects(new_agent, new_sensor)
+                sim_man.generate_simulation_node(new_sensor, agent_config_file["sensors"][sensor_config]["model"])
+            #    sim_man.cofigure_sim_model(new_sensor)
+                sim_man.parent_object_models(new_agent, new_sensor)
 
             # for model in agent_config_file["models"]:
             #     new_agent.add_model(model)
@@ -72,27 +74,7 @@ class AgentLoader:
             # Agent is now fully built & set up
             self.world.agent_list.append(new_agent)
 
-    def _set_attr_from_configuration(self, agent: Agent, config: dict) -> None:
-        """_summary_
-        Given an agent object and configuration, will edit the internal configurations of the
-        agent according to a configuration file
 
-        Args:
-            config (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-
-        for key in config:
-            if key == "settings":
-                for i in config["settings"]:  # `settings` have internal wrap
-                    setattr(agent, i, config["settings"][i])
-
-            if key in ["sensors", "sound", "animation"]:
-                continue
-
-            setattr(agent, key, config[key])
 
     def generate_agent_models(self):
         """For panda3d"""

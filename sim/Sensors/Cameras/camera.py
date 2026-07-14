@@ -1,7 +1,7 @@
 # camera.py
 import numpy as np
 import pybullet as p
-from sim.Sensors.sensor import Sensor  # import the CLASS, not the module
+from sim.sensors.sensor import Sensor  # import the CLASS, not the module
 from scipy.spatial.transform import Rotation as Rot
 import cv2
 import time
@@ -9,6 +9,12 @@ import time
 
 class Camera(Sensor):
     def __init__(self, param: dict, name: str):
+        """_summary_
+
+        Args:
+            param (dict): _description_
+            name (str): _description_
+        """
         super().__init__(param)  # keep config in base
         self.name = name
         self._fov = param.get("fov", 60)
@@ -31,6 +37,12 @@ class Camera(Sensor):
         self.up = [0, 1, 0]
         self.aspect = self._WIDTH / self._HEIGHT
         self.tf = {}
+        
+    # Overloaded version of init so it can be unboxed 
+    def __init__(self, name: str):
+        self.name = name
+        self._fov = 
+        self
 
     def get_output(self):
         """Render a frame given the camera position and target."""
