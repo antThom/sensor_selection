@@ -1,0 +1,31 @@
+name: 
+type: "EOCAMERA"
+model:
+id:
+
+input:
+output:
+encode: "rgb"
+
+tf:
+
+settings:
+  fov:
+  width:
+  height:
+  fx:
+  fy:
+  c:
+  forward_angle:
+  model: "pinhole"
+  k1:
+  k2:
+  k3:
+  k4:
+  near:
+  forward_angle:
+
+
+model_configs:
+
+

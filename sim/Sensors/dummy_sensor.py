@@ -1,7 +1,6 @@
 """ A dummy sensor for testing and creating a sensor """
 
 from sim.sensors.sensor import Sensor, SensorType
-from sim.utils.functions import set_attr_from_configuration
 
 class DummySensor(Sensor):
     """_summary_
@@ -12,7 +11,7 @@ class DummySensor(Sensor):
     """
     
     def __init__(self):
-       # super.__init__()
+        super().__init__()
         
         self.model = None
         self.sensor_id = None
