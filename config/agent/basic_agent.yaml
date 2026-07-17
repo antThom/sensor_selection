@@ -17,7 +17,7 @@ settings:
   scale: 0.001
   
 sensors:
-  IrSensor1:
+  DummySensor:
     type: "dummy"
     config_path: .\\"config\\sensors\\dummy_sensor.yaml"
     model: ".\\assets\\Agents\\Basic Drone\\simple_drone.obj"

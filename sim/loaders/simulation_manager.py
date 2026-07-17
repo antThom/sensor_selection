@@ -55,7 +55,9 @@ class SimulationManager:
             object (_type_): _description_
         """
 
-                # Future me can do magic variable changes with match case and kwargs in
+        # TODO: Add kwargs options
+        # TODO: add parent option which modifies things like setPos
+        # Future me can do magic variable changes with match case and kwargs in
         # configuration searching and other matching
         
         # object_to_change.actor.setPos(object_to_change.position[1,1], object_to_change.position[2,1], object_to_change.position[3,1])

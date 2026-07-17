@@ -1,7 +1,6 @@
 """File for holding the SensorLoader class and its utilities"""
 
 from sim.sensors.sensor import SensorType
-from sim.sensors.dummy_sensor import DummySensor
 
 class SensorLoader:
     """_summary_
@@ -32,8 +31,15 @@ class SensorLoader:
             case "Microphone":
                 pass
             case "dummy":
+                from sim.sensors.dummy_sensor import DummySensor
+
                 sensor = DummySensor()
                 sensor.set_attributes(config)
+            case "eo_camera":
+                from sim.sensors.cameras.eo_camera import EOCamera
+                sensor = EOCamera()
+                sensor.set_attributes(config)
+
             case _:
                 pass
                 # Nothing matched, raise an error
