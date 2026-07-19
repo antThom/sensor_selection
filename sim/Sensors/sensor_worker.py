@@ -4,6 +4,7 @@ from typing import Callable, Optional
 
 from .latest_value import LatestValue
 
+
 class SensorWorker:
     """Runs capture_fn in a background thread at rate_hz and stores output in LatestValue."""
 
@@ -30,7 +31,9 @@ class SensorWorker:
         if self._thread and self._thread.is_alive():
             return
         self._stop_evt.clear()
-        self._thread = threading.Thread(target=self._run, name=f"{self.name}_worker", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run, name=f"{self.name}_worker", daemon=True
+        )
         self._thread.start()
 
     def stop(self, join_timeout: float = 1.0) -> None:

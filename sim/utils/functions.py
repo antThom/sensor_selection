@@ -1,0 +1,55 @@
+from datetime import datetime, time
+import yaml
+import os
+import json
+
+
+def string_to_time(time_str: str, fmt: str = "%H:%M:%S") -> time:
+    """
+    Convert a string to a time object.
+
+    :param time_str: The time string to convert (e.g., "14:30:15").
+    :param fmt: The format of the time string (default is 24-hour HH:MM:SS).
+    :return: A datetime.time object.
+    :raises ValueError: If the string does not match the format.
+    """
+    if not isinstance(time_str, str):
+        raise TypeError("time_str must be a string.")
+
+    try:
+        # Parse the string into a datetime object
+        parsed_time = datetime.strptime(time_str.strip(), fmt).time()
+        return parsed_time
+    except ValueError as e:
+        raise ValueError(f"Invalid time format. Expected '{fmt}'. Error: {e}")
+
+
+def extract_yaml_configurations(file_path: str):
+    """_summary_
+    Loads a yaml file given a path
+
+    Args:
+        file_path (str): String of file path
+
+    Returns:
+        dict: generated dictionary created from yaml
+    """
+
+    with open(file_path, "r") as file:
+        configs = yaml.safe_load(file)
+
+    return configs
+
+
+def filter_arguements(valid_keys: dict, dict_to_filter, recuriveness=1) -> dict:
+    """_summary_
+    Filters through a dictionary and searches for valid keys.
+
+    Args:
+        valid_keys (dict): _description_
+        dict_to_filter (_type_): _description_
+        recurseiveness (int): How many levels the filter searches through
+
+    Returns:
+        dict: _description_
+    """
