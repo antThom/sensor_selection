@@ -1,0 +1,12 @@
+type: microphone
+forward:
+  - 0
+  - 0
+  - 1
+input: None
+output: wave
+sample_rate: 48000
+sensitivity: 0.01
+bias: 0
+noise_variance: 0.0002
+temperature_coef: -0.02
