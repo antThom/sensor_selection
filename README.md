@@ -25,6 +25,8 @@ The simulation involves a robot agent navigating toward a randomly placed goal u
 
 ## 🚀 Quick Start
 
+### 🧰 Option A: Using `venv` (recommended for lightweight installs)
+
 ```bash
 # Step 1: Clone the repo
 git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
@@ -36,17 +38,3 @@ sim_env\Scripts\activate  # On Windows
 
 # Step 3: Install dependencies from PyPI
 pip install -r requirements.txt
-```
-
---
-
-## Documentation
-
-Create a new directory `doxygen` and run doxygen inside of the folder with the provided `Doxyfile`.
-
-```bash
-mkdir doxygen 
-cd doxygen
-doxygen Doxyfile
-```
-

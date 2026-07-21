@@ -1,0 +1,47 @@
+{
+    "Object Labels": "labels.json",
+    "Layered Surface": {
+        "Mesh": "generation/Terrain_Generation/terrain_type/Flat/flat.asc",
+        "Scale": [1.0, 1.0, 1.0],
+        "Texture": "sim/assets/textures/rock.jpg"
+    },
+
+    "Surface Mesh": [
+        {
+            "Mesh": "generation/Terrain_Generation/terrain_type/Flat/flat.asc",
+            "Rotate Y to Z": false,
+            "YawPitchRoll": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "Position": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "Scale": [
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        {
+            "Mesh": "generation/Terrain_Generation/terrain_features/lowpoly_tree.urdf",
+            "type": "tree",
+            "position_type": "patch",
+            "patch": [0.0, 0.0,
+                      100.0, 0.0,
+                      100.0, 100.0,
+                      0.0, 100.0],
+            "density": 0.05
+        },
+        {
+            "Mesh": "generation/Terrain_Generation/terrain_features/cloud.urdf",
+            "type": "cloud",
+            "position_type": "random",
+            "density": 0.05,
+            "altitude": 60
+        }       
+    ]
+}

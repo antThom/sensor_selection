@@ -1,97 +1,57 @@
-from panda3d.core import Point3
-from panda3d.core import Texture
-from panda3d.core import TextureStage
-from panda3d.core import TexGenAttrib
-from panda3d.core import (
-    CollisionRay,
-    CollisionNode,
-    CollisionTraverser,
-    CollisionHandlerQueue,
-    BitMask32,
-)
-from sim.utils.object import OBJECT
-from pathlib import Path
-import numpy as np
+from __future__ import annotations
+
+try:
+    import pybullet as p
+except ImportError:
+    p = None
+
+from sim.Environment.ThermalObject import ThermalObject
 
 
-class STATIC_OBJECT(OBJECT):
-    def __init__(self, loader=None, gen_type=None):
-        OBJECT.__init__(self, loader=loader, gen_type=gen_type)
+class StaticObject(ThermalObject):
+    def __init__(self, body_id, *, visual=None, **thermal):
+        self.visual = visual
+        super().__init__(body_id, **thermal)
+        self.syncvisual()
 
-    def _set_texture(self, texture_path: str = None, scale: list = None):
-        self.tex = self.loader.loadTexture(str(texture_path))
-        self.tex.setWrapU(Texture.WM_repeat)
-        self.tex.setWrapV(Texture.WM_repeat)
-        self.object.setTexture(self.tex, 1)
-
-        self.object.setTexGen(TextureStage.getDefault(), TexGenAttrib.MWorldPosition)
-
-        if scale is not None:
-            self.object.setTexScale(TextureStage.getDefault(), scale[0], scale[1])
-        else:
-            self.object.setTexScale(TextureStage.getDefault(), 1, 1)
-
-    def _set_position(
-        self,
-        pos: str = None,
-        N: int = 1,
-        pos_val: np.ndarray = None,
-        terrain=None,
-        render=None,
+    @classmethod
+    def box(
+        cls,
+        size=(1.0, 1.0, 1.0),
+        position=(0.0, 0.0, 0.5),
+        *,
+        client_id=None,
+        visual=None,
+        thermal_mass=None,
+        **thermal,
     ):
-        if pos == "center":
-            # Get bounding box
-            if getattr(self, "object", None) is None:
-                min_point, max_point = terrain.getTightBounds()
-                center = (min_point + max_point) * 0.5
-                bottom_z = min_point.z
-                terrain.setPos(-center[0], -center[1], bottom_z)
-            else:
-                min_point, max_point = self.object.getTightBounds()
-                center = (min_point + max_point) * 0.5
-                bottom_z = min_point.z
-                self.object.setPos(-center[0], -center[1], bottom_z)
+        if p is None:
+            raise RuntimeError("pybullet is required to create a StaticObject body")
+        opts = {} if client_id is None else {"physicsClientId": client_id}
+        half = [float(side) / 2.0 for side in size]
+        shape = p.createCollisionShape(p.GEOM_BOX, halfExtents=half, **opts)
+        body = p.createMultiBody(
+            baseMass=0.0,
+            baseCollisionShapeIndex=shape,
+            basePosition=[float(x) for x in position],
+            **opts,
+        )
+        return cls(
+            body,
+            client_id=client_id,
+            visual=visual,
+            dimensions=size,
+            position=position,
+            mass=thermal_mass,
+            **thermal,
+        )
 
-        elif pos == "random":
-            if terrain.object is not None:
-                min_point, max_point = terrain.object.getTightBounds()
-            else:
-                min_point, max_point = -50, 50
-            position = np.random.uniform(low=min_point.x, high=max_point.x, size=(2,))
-            self.cTrav = CollisionTraverser()
-            self.rayQueue = CollisionHandlerQueue()
+    def syncvisual(self):
+        if self.visual is None:
+            return
+        x, y, z = self.position()
+        # pybullet is z-up and ursina/panda3d is y-up
+        self.visual.position = (x, z, y)
 
-            ray = CollisionRay()
-            rayNode = CollisionNode("treeRay")
-            rayNode.addSolid(ray)
-            rayNode.setFromCollideMask(BitMask32.bit(1))
-            rayNode.setIntoCollideMask(BitMask32.allOff())
 
-            self.rayNP = render.attachNewNode(rayNode)
-            self.cTrav.addCollider(self.rayNP, self.rayQueue)
-            z = terrain.terrain_height_at(
-                x=position[0],
-                y=position[1],
-                ray=ray,
-                render=render,
-                cTrav=self.cTrav,
-                rayQueue=self.rayQueue,
-            )
-            if z is None:
-                pass
-
-            self.object.instanceTo(render)
-            self.object.setPos(position[0], position[1], z)
-            self.object.show()
-        else:
-            pass
-
-    def _transform_terrain(self, pos: str = None, scale: np.ndarray = None):
-        self._set_scale(scale)
-
-        if pos == "center":
-            # Get bounding box
-            min_point, max_point = self.object.getTightBounds()
-            center = (min_point + max_point) * 0.5
-            bottom_z = min_point.z
-            self.object.setPos(-center[0], -center[1], bottom_z)
+STATIC_OBJECT = StaticObject

@@ -4,26 +4,22 @@ import soundfile as sf
 import threading
 import time
 from sim.Sound.point_source import SoundPointSource
-from sim.utils.CONSTANTS import *
+from sim.Constants import *
 import pybullet as p
-
 
 class AudioMixer:
     """
     Mixes all SoundPointSources into a single combined audio field.
     The mixed field is stored internally and can be queried by microphones.
     """
-
-    def __init__(self, sample_rate=44100, dt=SIM_DT):
+    def __init__(self, sample_rate=44100, dt=sim_dt):
         self.sample_rate = sample_rate
         self.dt = dt
         self.sources = []
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._thread = None
-        self._mixed_buffer = np.zeros(
-            (int(self.sample_rate * self.dt), 1), dtype=np.float32
-        )
+        self._mixed_buffer = np.zeros((int(self.sample_rate * self.dt), 1), dtype=np.float32)
 
     def add_source(self, source: SoundPointSource):
         if source.sample_rate != self.sample_rate:
@@ -83,7 +79,7 @@ class AudioMixer:
     #     """
     #     if not self.sources:
     #         return np.zeros_like(self._mixed_buffer)
-
+        
     #     position = np.array(position).reshape((3,))
     #     chunk_size = int(self.sample_rate * self.dt)
     #     mic_buffer = np.zeros((chunk_size, 1), dtype=np.float32)
@@ -120,6 +116,7 @@ class AudioMixer:
     #             # Get the current waveform chunk
     #             # chunk = src.get_chunk(chunk_size)
     #             chunk = src.get_chunk(chunk_size, advance=False)
+
 
     #             # Apply delay (zero-pad front)
     #             # if delay_samples > 0:
