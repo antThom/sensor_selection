@@ -135,7 +135,15 @@ class Sensor(ABC):
         
 
         self.name = ""
+        self.parent_node = None # For other things in panda3d to attach here
         self.model = None
+         
+        # Model Defaults for things
+        self.scale = 1
+        self.color = None
+        self.position = [0, 0, 0]
+        
+        
         self.agent = None
         self.agent: SensorType = SensorType.EMPTY
 
