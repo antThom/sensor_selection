@@ -196,15 +196,27 @@ class ThermalManager:
         obj = self.objects.get((body_id, link_id))
         return self.ambient if obj is None else obj.temperature
 
+    def get_body_objects(self, body_id):
+        return {
+            link_id: obj
+            for (registered_body_id, link_id), obj in self.objects.items()
+            if registered_body_id == body_id
+        }
+
+    def unregister_body(self, body_id):
+        for key in [key for key in self.objects if key[0] == body_id]:
+            del self.objects[key]
+
     def register_body(self, body_id, filename, per_link=False):
         material = ThermalMaterialLibrary.match_material_from_filename(filename)
-        self.add_object(body_id, -1, material=material, init_T=material["T"])
+        primary = self.add_object(body_id, -1, material=material, init_T=material["T"])
         if not per_link or p is None:
-            return
+            return primary
         opts = {} if self.physics_client is None else {"physicsClientId": self.physics_client}
         try:
             links = p.getNumJoints(body_id, **opts)
         except Exception:
-            return
+            return primary
         for link_id in range(links):
             self.add_object(body_id, link_id, material=material, init_T=material["T"])
+        return primary

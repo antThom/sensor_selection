@@ -7,11 +7,13 @@ import pybullet_data
 from pathlib import Path
 from scipy.spatial.transform import Rotation as Rot
 from sim.Environment.Thermal.thermal_manager import ThermalManager
+from sim.Environment.ThermalObject import ThermalBody
 from sim.Sensor.sensor import load_sensor_from_file
 from sim.Constants import *
 
-class Agent:
+class Agent(ThermalBody):
     def __init__(self,filepath, thermal: ThermalManager):
+        super().__init__(thermal)
         print(f"{ph.GREEN}Define Agent{ph.RESET}")
         self.position = np.zeros((3,1))
         self.velocity = np.zeros((3,1))
@@ -71,6 +73,13 @@ class Agent:
                 self.sound.set_active(True)
 
     def _load_file(self,physicsClient=None,team=None):
+        if self._thermal_body_id is not None:
+            try:
+                p.removeBody(self._thermal_body_id, physicsClientId=physicsClient)
+            except Exception:
+                pass
+            self.detach_thermal()
+
         # Load the agent's json 
         with open(self.filepath, "r") as f:
             config_data = json.load(f)
@@ -96,7 +105,7 @@ class Agent:
         else:
             p.changeVisualShape(self.agent_id, linkIndex=-1, rgbaColor=[0.3,0.3,0.3,1])
 
-        self.thermal.register_body(self.agent_id, str(agent_file), per_link=False)
+        self.attach_thermal(self.agent_id, str(agent_file), per_link=False)
 
 
         # Load the sensors

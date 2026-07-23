@@ -7,6 +7,7 @@ import pybullet_data
 from pathlib import Path
 from shapely.geometry import Polygon, Point
 from sim.Environment.Thermal.thermal_manager import ThermalManager
+from sim.Environment.ThermalObject import SceneItem
 from scipy.spatial import ConvexHull
 from sim.Constants import *
 import trimesh
@@ -24,6 +25,7 @@ class Environment:
         self.sky_temp = config_.get("sky_temp", 253.15)
         self.sim_time = config_.get("time_of_day", "12:00:00")
         self.thermal = ThermalManager(ambient_K=self.ambient_temp, T_sky=self.sky_temp, time_of_day=self.sim_time, physics_client=self.client_id)
+        self.scene_items = []
 
 
         # Load the Terrain
@@ -120,7 +122,10 @@ class Environment:
         p.changeVisualShape(self.terrain['terrain'], -1, textureUniqueId=tex_id)
         p.changeVisualShape(self.terrain['terrain'], -1, rgbaColor=[1,1,1,1], specularColor=[0.1,0.1,0.1])
 
-        self.thermal.register_body(self.terrain['terrain'], config_file, per_link=False)
+        self.terrain['scene_item'] = self._attach_scene_item(
+            self.terrain['terrain'],
+            config_file,
+        )
 
     def load_features(self, base_dir):
         for idx, feat in enumerate(self.terrain_config["Surface Mesh"]):
@@ -144,8 +149,16 @@ class Environment:
         if feat['position_type'] == "patch":
             poly_coords = np.asarray(feat["patch"]).reshape((-1,2))
             patch_polygon = Polygon(poly_coords)
-            tree_id = p.loadURDF(str(mesh_path))
-            Num_feat = self.determine_N_features(feat=feat,id=tree_id,area=patch_polygon.area, N_min=5)
+            tree_probe_id = p.loadURDF(str(mesh_path))
+            try:
+                Num_feat = self.determine_N_features(
+                    feat=feat,
+                    id=tree_probe_id,
+                    area=patch_polygon.area,
+                    N_min=5,
+                )
+            finally:
+                p.removeBody(tree_probe_id)
             # if "N" in feat:
             #     Num_feat = int(feat["N"])
             # elif "density" in feat:
@@ -162,35 +175,38 @@ class Environment:
             tree_id = p.loadURDF(str(mesh_path), basePosition=[x, y, z], useFixedBase=True, useMaximalCoordinates=True)
             # Apply green color (RGB + alpha)
             # p.changeVisualShape(tree_id, linkIndex=0, rgbaColor=[0.1, 0.6, 0.1, 0.950])  # canopy
-            self.thermal.register_body(tree_id, str(mesh_path), per_link=True)
+            self._attach_scene_item(tree_id, mesh_path, per_link=True)
 
     def load_clouds(self,feat,mesh_path):
-        cloud_id = p.loadURDF(str(mesh_path), basePosition=[0,0,0], useFixedBase=True)
+        cloud_probe_id = p.loadURDF(str(mesh_path), basePosition=[0,0,0], useFixedBase=True)
         
-        if feat['position_type'] == "patch" or "patch" in feat:
-            # place clouds in the patch area
-            poly_coords = np.asarray(feat["patch"]).reshape((-1,2))
-            if poly_coords.shape[1]>2:
-                # 3D coordinate given
-                patch_polygon = Polygon(poly_coords.reshape((-1,3)))
-            else:
-                # 2D coordinate given
-                patch_polygon = Polygon(poly_coords.reshape((-1,2)))
-            
-            Num_feat = self.determine_N_features(feat=feat,id=cloud_id,area=patch_polygon.area, N_min=1)
-            
-            pos = self.sample_points_in_polygon(patch_polygon, Num_feat, buffer=1.0)
-
-        elif feat['position_type'] == "position":
-            # Place clouds in specified position
-            pos = np.asarray(feat['position']).reshape((-1,3))
-        elif feat['position_type'] == "random":
-            # Place the cloud in a random position
-            Num_feat = self.determine_N_features(feat=feat,id=cloud_id,area=self.terrain['terrain_area'], N_min=5)
-            # if "density" in feat:
-            #     Num_feat = self.compute_N_from_density(id=cloud_id, density=feat['density'], N_min=5, area=self.terrain['terrain_area'])
+        try:
+            if feat['position_type'] == "patch" or "patch" in feat:
+                # place clouds in the patch area
+                poly_coords = np.asarray(feat["patch"]).reshape((-1,2))
+                if poly_coords.shape[1]>2:
+                    # 3D coordinate given
+                    patch_polygon = Polygon(poly_coords.reshape((-1,3)))
+                else:
+                    # 2D coordinate given
+                    patch_polygon = Polygon(poly_coords.reshape((-1,2)))
                 
-            pos = np.random.uniform(low=-1*np.max(self.terrain['terrain_bounds']), high=1*np.max(self.terrain['terrain_bounds']), size=(Num_feat, 3))
+                Num_feat = self.determine_N_features(feat=feat,id=cloud_probe_id,area=patch_polygon.area, N_min=1)
+
+                pos = self.sample_points_in_polygon(patch_polygon, Num_feat, buffer=1.0)
+
+            elif feat['position_type'] == "position":
+                # Place clouds in specified position
+                pos = np.asarray(feat['position']).reshape((-1,3))
+            elif feat['position_type'] == "random":
+                # Place the cloud in a random position
+                Num_feat = self.determine_N_features(feat=feat,id=cloud_probe_id,area=self.terrain['terrain_area'], N_min=5)
+                # if "density" in feat:
+                #     Num_feat = self.compute_N_from_density(id=cloud_id, density=feat['density'], N_min=5, area=self.terrain['terrain_area'])
+
+                pos = np.random.uniform(low=-1*np.max(self.terrain['terrain_bounds']), high=1*np.max(self.terrain['terrain_bounds']), size=(Num_feat, 3))
+        finally:
+            p.removeBody(cloud_probe_id)
         if 'altitude' in feat:
             pos[:,2] = feat['altitude']
         else:
@@ -201,13 +217,22 @@ class Environment:
             cloud_id = p.loadURDF(str(mesh_path), basePosition=[x, y, z], useFixedBase=True, useMaximalCoordinates=True)
             # Apply cloud color (RGB + alpha)
             # p.changeVisualShape(cloud_id, linkIndex=0, rgbaColor=[0.7, 0.7, 0.7, 1.0])  # canopy
-            self.thermal.register_body(cloud_id, str(mesh_path), per_link=False)
+            self._attach_scene_item(cloud_id, mesh_path)
+
+    def _attach_scene_item(self, body_id, source, *, per_link=False):
+        item = SceneItem(
+            body_id,
+            str(source),
+            self.thermal,
+            per_link=per_link,
+        )
+        self.scene_items.append(item)
+        return item
     
     def compute_N_from_density(self,id,density,area,N_min=5):
         # Load Mesh
         vis_data = p.getVisualShapeData(id,-1)
         obj_path = Path(str(vis_data[0][4]).replace("b'","").replace("'",""))
-        p.removeBody(id)
         mesh = trimesh.load(str(obj_path))
         # Project points onto the XY plane (z = 0)
         projected_points = mesh.vertices[:,:2]  # Drop the Z-coordinate
