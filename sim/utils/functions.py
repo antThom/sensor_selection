@@ -34,10 +34,13 @@ def extract_yaml_configurations(file_path: str):
     Returns:
         dict: generated dictionary created from yaml
     """
-
-    with open(file_path, "r") as file:
-        configs = yaml.safe_load(file)
-
+    try:
+        with open(file_path, "r") as file:
+            configs = yaml.safe_load(file)
+    except FileNotFoundError as error:
+        print(f"Check configuration again! Path {file_path} was not found. ")
+        raise error
+    
     return configs
 
 
@@ -54,10 +57,10 @@ def filter_arguements(valid_keys: dict, dict_to_filter, recuriveness=1) -> dict:
         dict: _description_
     """
 
-def set_attr_from_configuration(agent: object, config: dict) -> None:
+def set_attr_from_configuration(agent: object, config: dict,*args, **kwargs) -> None:
     """_summary_
     Given an agent object and configuration, will edit the internal configurations of the
-    agent according to a configuration file
+    agent according to a configuration file. If the attribute is not in the object or has a value of None, it will not be assigned.
 
     Args:
         config (_type_): _description_
@@ -66,12 +69,32 @@ def set_attr_from_configuration(agent: object, config: dict) -> None:
         _type_: _description_
     """
 
-    for key in config:
-        if key == "settings":
-            for i in config["settings"]:  # `settings` have internal wrap
-                setattr(agent, i, config["settings"][i])
+    all_config_dict = dict()
+    
+    def search_dictionary(dictionary:dict): 
+        for key, value, in dictionary.items():
+            if isinstance(value, dict):
+                search_dictionary(value) # Unpack nested dictionaries
+            else:
+                all_config_dict[key] = value
 
-        if key in ["sensors", "sound", "animation"]:
+    search_dictionary(config)
+    search_dictionary(kwargs) # kwargs is a dictionary
+    
+    # Pick up any stray dictionaries that are passed
+    for arg in args:
+        if isinstance(arg, dict):
+            search_dictionary(arg)
+            
+    
+    for attr, value in all_config_dict.items():
+        # Prevent empty configurations from writing
+        if value is None:
             continue
-
-        setattr(agent, key, config[key])
+        
+        if getattr(agent, attr, None) is None:
+        #    print(f"Attribute "{attr}"" is not a valid attribute of object {type(agent)} !")
+        # Let other attributes pass through (like sensor types on agent objects)
+            continue 
+        
+        setattr(agent, attr, value)

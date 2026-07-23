@@ -1,6 +1,6 @@
 """File for holding the SensorLoader class and its utilities"""
 
-from sim.sensors.sensor import SensorType
+from sim.sensors.sensor import SensorType, Sensor
 from panda3d.core import PandaNode, Camera, NodePath
 
 class SensorLoader:
@@ -10,10 +10,10 @@ class SensorLoader:
     Mostly works as an object generator for AgentLoader
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, world):
+        self.world = world
 
-    def create_sensor(self, name, type, config, world, *args, **kwargs):
+    def create_sensor(self, name, type, config, *args, **kwargs):
         """_summary_
         Given a set of configurations, will generate a sensor object
         Returns:
@@ -22,6 +22,7 @@ class SensorLoader:
         sensor = None
 
         # See design pattern "Strategy"
+        # Ensure you set the type so internals are able to react to ernumerators
         match type:
             case "IR Camera":
                 pass
@@ -35,22 +36,30 @@ class SensorLoader:
                 from sim.sensors.dummy_sensor import DummySensor
 
                 sensor = DummySensor()
-                sensor.set_attributes(config)
+                sensor.set_configs(config)
+                sensor.type = SensorType.DUMMY
             case "eo_camera":
                 from sim.sensors.cameras.eo_camera import EOCamera
 
                 sensor = EOCamera()
-                sensor.set_attributes(config)
-                self.setupSensor(sensor, world)
-                self.setupCamera(sensor, world)
+                sensor.set_configs(config)
+                sensor.type = SensorType.EOCAMERA
+
 
             case _:
                 pass
                 # Nothing matched, raise an error
 
         return sensor
+    
+    def setup_sensor(self, sensor:Sensor):
+        match sensor.type:
+            case SensorType.EOCAMERA:
+            #case "eo_camera":
+                self.setupCamera(sensor)
+        
 
-    def setupCamera(self, sensor, world):
+    def setupCamera(self, sensor: Sensor):
         """_summary_
         Sets up and unboxes all the backend required to create sensors.
         Call on an instianiated camera to initialize it.
@@ -59,30 +68,23 @@ class SensorLoader:
             sensor (_type_): _description_
             world (_type_): _description_
         """
+        
+        
         sensor.camera_node = Camera(f"{sensor.name}_camera")
         sensor.camera_nodepath = NodePath(sensor.camera_node)
-        sensor.camera_nodepath.reparentTo(world.render)
+        sensor.camera_nodepath.reparentTo(sensor.object_node)
         
-        sensor.display_region = world.win.makeDisplayRegion()
+        sensor.display_region = self.world.win.makeDisplayRegion()
         sensor.display_region.setCamera(sensor.camera_nodepath)
         sensor.display_region.setActive(False)
         # Always force default display region and camera
         # Disabling all views means that default camera will remain.
         sensor.display_region.setSort(5) 
         
-        world.camera_list.append(sensor)
+        # Lens stuff
+        
+        self.world.camera_list.append(sensor)
 
-    def setupSensor(self, sensor, world):
-        """_summary_
-        Sets up and unboxes all the backend required to create sensors.
-        Call on an instianiated camera to initialize it.
-
-        Args:
-            sensor (_type_): _description_
-            world (_type_): _description_
-        """
-        sensor.parent_node = PandaNode(sensor.name)
-        NodePath(sensor.parent_node).reparentTo(world.render)
 
     def register_sensor(self, sensor):
         pass

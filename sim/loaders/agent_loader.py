@@ -31,7 +31,7 @@ class AgentLoader:
             agent_config_file = extract_yaml_configurations(
                 self.config["agents"][agent_config]["config_path"]
             )
-            new_agent = Agent(self.config["agents"][agent_config]["id"])
+            new_agent = Agent()
 
             # Set configurations twice: once for the template file and second for the top level config
             set_attr_from_configuration(new_agent, agent_config_file)
@@ -48,10 +48,9 @@ class AgentLoader:
 
             sim_man.generate_simulation_node(new_agent, new_agent.model)
             sim_man.configure_sim_model(new_agent)
+            sim_man.render_object(new_agent)
 
             # sim_man.attach_sound(new_agent, agent_config_file) # Later Problem
-
-            # Sensor loading is a future problem, but here is the code to do so
 
             # load sensors (sensor loader will deal with it)
             for sensor_config in agent_config_file["sensors"]:
@@ -61,13 +60,14 @@ class AgentLoader:
                     agent_config_file["sensors"][sensor_config],
                     self.world)
 
-                # magic sensor configuration??????
-                new_agent.add_sensor(new_sensor, sensor_config)
 
                 sim_man.generate_simulation_node(new_sensor, agent_config_file["sensors"][sensor_config]["model"])
                 sim_man.configure_sim_model(new_sensor)
                 sim_man.parent_object_models(new_agent, new_sensor)
 
+                self.world.sensor_loader.setup_sensor(new_sensor)
+                sim_man.render_object(new_sensor)
+                new_agent.add_sensor(new_sensor, sensor_config)
             # for model in agent_config_file["models"]:
             #     new_agent.add_model(model)
 

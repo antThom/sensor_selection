@@ -8,11 +8,12 @@ from sim.environment.ThermalObject.ThermalObject import ThermalObject
 from sim.utils.CONSTANTS import *
 
 from sim.environment.ThermalObject.ThermalObject import ThermalObject
+from sim.rendering.object import RenderableObject
 
 
-class Agent:
-    def __init__(self, id):
-        self.agent_id = id
+class Agent(RenderableObject):
+    def __init__(self):
+        super().__init__()
 
         """
         Most of these variables contained here are class defaults
@@ -33,11 +34,6 @@ class Agent:
         self.tf = {}
         self.max_vel = 1
 
-        # Graphics
-        self.model = None
-        self.animations = list()
-        self.actor = None
-        self.scale = 1
 
     def get_id(self):
         return self.agent_id

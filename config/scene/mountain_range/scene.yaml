@@ -69,17 +69,15 @@ dynamic:
     color: ["",""]
 
 agents:
-  basicAgent:
-    name: "BasicAgent"
-    config_path: "config\\agent\\basic_agent.yaml"
+  DummyAgent:
+    name: "DummyAgent"
+    config_path: "config\\agent\\dummy_agent.yaml"
     id: 1
-    position: [900,900,900]
-  # basicAgent2:
+  # BasicAgent:
   #   name: "BasicAgent"
   #   config_path: "config\\agent\\basic_agent.yaml"
   #   id: 2
   agent_with_camera:
     name: "AgentWithCamera"
     config_path: "config\\agent\\agent_with_camera.yaml"
-    id: 2
-    position: [0, 0, 0]
+    agent_id: 3

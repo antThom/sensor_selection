@@ -1,7 +1,7 @@
 # camera.py
 import numpy as np
 import pybullet as p
-from sim.sensors.sensor import Sensor  # import the CLASS, not the module
+from sim.sensors.sensor import Sensor, SensorType  # import the CLASS, not the module
 from scipy.spatial.transform import Rotation as Rot
 import cv2
 import time
@@ -46,4 +46,6 @@ class Camera(Sensor):
         self.camera_node = None
         self.camera_nodepath = None
         self.display_region = None
+        
+        self.type = SensorType.CAMERA
 
