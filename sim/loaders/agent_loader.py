@@ -4,10 +4,10 @@ This loads camera and agent controls (agents haven't been implemented yet)
 
 from math import pi, sin, cos
 
-from sim.agent.agent import Agent
+from sim.Agent.agent import Agent
 from sim.utils.functions import extract_yaml_configurations
 
-from sim.environment.ThermalObject.ThermalObject import ThermalObject
+from sim.Environment.ThermalObject.ThermalObject import ThermalObject
 
 
 class AgentLoader:

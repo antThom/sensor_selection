@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import geopandas as gpd
+import math
+from shapely.geometry import box
 
 from osm import OSMDownloader
 from terrain import ConstantTerrainSampler, RasterTerrainSampler
@@ -91,7 +93,79 @@ def load_or_query_feature(method_name: str, osm: OSMDownloader, place: str | Non
     gdf = query(point, add_elevation=add_elevation, use_cache=False, save_cache=False, cache_name=cache_key)
     return gdf, stem
 
+def _iter_tiles(bounds, tile_size: float, overlap: float = 0.0):
+    xmin, ymin, xmax, ymax = bounds
+    step = max(tile_size - overlap, 1e-6)
 
+    nx = max(1, math.ceil((xmax - xmin) / step))
+    ny = max(1, math.ceil((ymax - ymin) / step))
+
+    for ix in range(nx):
+        for iy in range(ny):
+            x0 = xmin + ix * step
+            y0 = ymin + iy * step
+            x1 = min(x0 + tile_size, xmax)
+            y1 = min(y0 + tile_size, ymax)
+            if x1 <= x0 or y1 <= y0:
+                continue
+            yield ix, iy, box(x0, y0, x1, y1)
+
+def _safe_bounds(*gdfs: gpd.GeoDataFrame):
+    bounds = []
+    for gdf in gdfs:
+        if gdf is not None and not gdf.empty:
+            bounds.append(gdf.total_bounds)
+
+    if not bounds:
+        return None
+
+    xmin = min(b[0] for b in bounds)
+    ymin = min(b[1] for b in bounds)
+    xmax = max(b[2] for b in bounds)
+    ymax = max(b[3] for b in bounds)
+    return xmin, ymin, xmax, ymax
+
+def _clip_gdf_to_tile(gdf: gpd.GeoDataFrame | None, tile_geom):
+    if gdf is None or gdf.empty:
+        return gdf
+    try:
+        clipped = gpd.clip(gdf, tile_geom)
+        if clipped is not None and not clipped.empty:
+            return clipped
+    except Exception:
+        pass
+
+    try:
+        mask = gdf.intersects(tile_geom)
+        return gdf.loc[mask].copy()
+    except Exception:
+        return gdf
+
+def _export_scene(
+    builder_output_dir: Path,
+    output_name: str,
+    terrain,
+    buildings,
+    roads,
+    water,
+    parks,
+):
+    builder = CityMeshBuilder(
+        terrain_sampler=terrain.height_at,
+        output_dir=str(builder_output_dir),
+    )
+
+    builder.add_buildings(buildings)
+    builder.add_roads(roads)
+    builder.add_water(water)
+    # builder.add_parks(parks)
+
+    obj_path = builder.export_obj(output_name.replace(".bam", ".obj"))
+    bam_path = builder.export_bam(output_name)
+    manifest_path = builder.export_manifest_csv()
+
+    return bam_path, obj_path, manifest_path, builder
+    
 def main():
     parser = argparse.ArgumentParser(description="Generate a city mesh from OSM data.")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -108,6 +182,25 @@ def main():
     parser.add_argument("--output_name", type=str, default="city.glb", help="Output GLB filename")
     parser.add_argument("--dem", type=str, default=None, help="Optional DEM raster path for elevation sampling")
     parser.add_argument("--add_elevation", action="store_true", help="Attach elevation metadata from terrain/DEM")
+    parser.add_argument(
+        "--tile_size",
+        type=float,
+        default=None,
+        help="Tile size in projected map units. If omitted, export a single full-city BAM.",
+    )
+    parser.add_argument(
+        "--tile_overlap",
+        type=float,
+        default=10.0,
+        help="Overlap between adjacent tiles in projected map units.",
+    )
+    parser.add_argument(
+        "--tile_prefix",
+        type=str,
+        default="tile",
+        help="Prefix used when naming tile output folders and files.",
+    )
+    
     args = parser.parse_args()
 
     if args.dem:
@@ -126,7 +219,8 @@ def main():
     point = args.point
     use_cache = args.use_cache and not args.overwrite
 
-    output_dir = Path(Path.cwd(),"assets","Terrain","Generate",str(args.output_dir))
+    # output_dir = Path(Path.cwd(),"assets","Terrain","Generate",str(args.output_dir))
+    output_dir = Path(str(args.output_dir))
     output_dir.mkdir(parents=True, exist_ok=True)
     
     if place:
@@ -153,29 +247,106 @@ def main():
     print("Water:", 0 if water is None else len(water))
     print("Parks:", 0 if parks is None else len(parks))
     
-    builder = CityMeshBuilder(
-        terrain_sampler=terrain.height_at,
-        output_dir=args.output_dir,
-    )
+    if args.tile_size is None or args.tile_size <= 0:
+        builder = CityMeshBuilder(
+            terrain_sampler=terrain.height_at,
+            output_dir=str(output_dir),
+        )
 
-    builder.add_buildings(buildings)
-    builder.add_roads(roads)
-    builder.add_water(water)
-    # builder.add_parks(parks)
+        builder.add_buildings(buildings)
+        builder.add_roads(roads)
+        builder.add_water(water)
+        builder.add_parks(parks)
+        
+        builder.apply_textures(
+            building_rules=[
+                (12.0, "assets/textures/building_low.png"),
+                (30.0, "assets/textures/building_mid.png"),
+                (1e9, "assets/textures/building_high.png"),
+            ],
+            road_texture_path=Path("assets//textures//path//cement//Road007_1K-JPG//Road007.png"),
+            park_texture_path=Path("assets//textures//path//grass//Grass001_1K-JPG//Grass001.png")
+            water_texture_path="assets/textures/water.png",
+        )
+        
 
-    glb_path = builder.export_bam(args.output_name)
-    manifest_path = builder.export_manifest_csv()
+        obj_path = builder.export_obj(Path(args.output_name).with_suffix(".obj").name)
+        glb_path = builder.export_bam(args.output_name)
+        manifest_path = builder.export_manifest_csv()
 
-    print(f"Exported scene: {glb_path}")
-    print(f"Exported manifest: {manifest_path}")
-    print(f"Generated assets: {len(builder.assets)}")
+        print(f"Exported scene: {glb_path} and {obj_path}")
+        print(f"Exported manifest: {manifest_path}")
+        print(f"Generated assets: {len(builder.assets)}")
+        return
+    
+    bounds = _safe_bounds(buildings, roads, water, parks)
+    if bounds is None:
+        print("No geometry found; nothing to tile.")
+        return
+
+    tile_count = 0
+    total_assets = 0
+
+    for ix, iy, tile_geom in _iter_tiles(bounds, args.tile_size, args.tile_overlap):
+        tile_buildings = _clip_gdf_to_tile(buildings, tile_geom)
+        tile_roads = _clip_gdf_to_tile(roads, tile_geom)
+        tile_water = _clip_gdf_to_tile(water, tile_geom)
+        tile_parks = _clip_gdf_to_tile(parks, tile_geom)
+
+        has_data = any(
+            gdf is not None and not gdf.empty
+            for gdf in (tile_buildings, tile_roads, tile_water, tile_parks)
+        )
+        if not has_data:
+            continue
+
+        tile_name = f"{args.tile_prefix}_{ix:03d}_{iy:03d}"
+        tile_dir = output_dir / tile_name
+        tile_dir.mkdir(parents=True, exist_ok=True)
+
+        print(
+            f"{tile_name}: "
+            f"buildings={0 if tile_buildings is None else len(tile_buildings)}, "
+            f"roads={0 if tile_roads is None else len(tile_roads)}, "
+            f"water={0 if tile_water is None else len(tile_water)}, "
+            f"parks={0 if tile_parks is None else len(tile_parks)}"
+        )
+
+        bam_path, obj_path, manifest_path, builder = _export_scene(
+            builder_output_dir=tile_dir,
+            output_name=f"{tile_name}.bam",
+            terrain=terrain,
+            buildings=tile_buildings,
+            roads=tile_roads,
+            water=tile_water,
+            parks=tile_parks,
+        )
+
+        print(f"  Exported: {bam_path}")
+        print(f"  Exported: {obj_path}")
+        print(f"  Exported manifest: {manifest_path}")
+        print(f"  Generated assets: {len(builder.assets)}")
+
+        tile_count += 1
+        total_assets += len(builder.assets)
+
+    print(f"Finished exporting {tile_count} tiles.")
+    print(f"Total generated assets: {total_assets}")
 
 
 if __name__ == "__main__":
     main()
-    """ Examples to run:
-    1. Place-based location: python -m citygen.main --place "Baltimore, Maryland, USA" --output_dir baltimore --output_name baltimore.bam --add_elevation --use_cache --save_each --overwrite
-    2. Point-based location: python -m citygen.main --point 33.7490,-84.3880 --dist 1500 --output_dir atlanta_city --output_name atlanta.glb --add_elevation
-    3. with DEM data:        python -m citygen.main --place "Atlanta, Georgia, USA" --dem atlanta_dem.tif --output_dir atlanta_city --output_name atlanta.glb --add_elevation
-    
+    """
+    Examples to run:
+    1. Full city:
+       python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache
+
+    2. Tiled export:
+       python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache --tile_size 500
+
+    3. Point-based location:
+       python main.py --point 33.7490,-84.3880 --dist 1500 --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation
+
+    4. With DEM data:
+       python main.py --place "Atlanta, Georgia, USA" --dem atlanta_dem.tif --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation
     """

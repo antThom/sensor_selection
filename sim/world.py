@@ -8,7 +8,7 @@ from sim.loaders.agent_loader import AgentLoader
 from sim.loaders.environment_loader import EnvironmentLoader
 from sim.loaders.object_loader import ObjectLoader
 from sim.loaders.sensor_loader import SensorLoader
-from sim.agent.camera_controls import CameraControls
+from sim.Agent.camera_controls import CameraControls
 
 from sim.utils.functions import extract_yaml_configurations
 

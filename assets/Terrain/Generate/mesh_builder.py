@@ -7,9 +7,10 @@ from typing import Callable, Optional, Any, Iterable
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, MultiPolygon, LineString, MultiLineString
+from shapely.geometry import Polygon, MultiPolygon, LineString, MultiLineString, GeometryCollection
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import triangulate
+from shapely.geometry.polygon import orient
 
 from panda3d.core import (
     Geom,
@@ -18,7 +19,11 @@ from panda3d.core import (
     GeomVertexData,
     GeomVertexFormat,
     GeomVertexWriter,
+    GeomVertexReader,
     NodePath,
+    Texture, 
+    TexturePool, 
+    TextureStage
 )
 
 
@@ -132,7 +137,43 @@ def _face_normal(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
         return np.array([0.0, 0.0, 1.0], dtype=float)
     return n / norm
 
+def _repair_geom(geom: BaseGeometry):
+    if geom is None or geom.is_empty:
+        return None
+    try:
+        geom = geom.buffer(0)
+    except Exception:
+        return None
+    if geom.is_empty:
+        return None
+    return geom
 
+def _iter_polygon_parts(geom: BaseGeometry):
+    """
+    Yield Polygon objects from Polygon, MultiPolygon, or GeometryCollection.
+    """
+    geom = _repair_geom(geom)
+    if geom is None:
+        return
+
+    if geom.geom_type == "Polygon":
+        yield orient(geom, sign=1.0)
+
+    elif geom.geom_type == "MultiPolygon":
+        for part in geom.geoms:
+            part = _repair_geom(part)
+            if part is not None and part.geom_type == "Polygon":
+                yield orient(part, sign=1.0)
+
+    elif geom.geom_type == "GeometryCollection":
+        for part in geom.geoms:
+            yield from _iter_polygon_parts(part)
+
+def _iter_rings(poly: Polygon):
+    yield poly.exterior
+    for hole in poly.interiors:
+        yield hole
+            
 @dataclass
 class MeshAsset:
     name: str
@@ -151,38 +192,56 @@ class CityMeshBuilder:
         self.terrain_sampler = terrain_sampler
         self.output_dir = Path(output_dir)
         self.assets: list[MeshAsset] = []
+        self.tile_size = 500.0
+        self.tiles = {}
         self.root = NodePath("city_root")
 
     def sample_ground_z(self, geom: BaseGeometry) -> float:
         x, y = _representative_xy(geom)
         return float(self.terrain_sampler(x, y))
 
-    def _make_geomnode_from_extrusion(
-        self,
-        poly: Polygon,
-        height: float,
-        name: str,
-        color: Optional[tuple[float, float, float, float]] = None,
-    ) -> NodePath:
-        """Create a Panda3D GeomNode from an extruded polygon.
-
-        The extrusion is built explicitly so the result can be exported directly
-        to BAM without an intermediate mesh format.
+    def _tile_key(self, x: float, y: float) -> tuple[int, int]:
+        return (int(np.floor(x / self.tile_size)), int(np.floor(y / self.tile_size)))
+    
+    def _get_tile_node(self, tile_key: tuple[int, int]) -> NodePath:
+        if tile_key not in self.tiles:
+            ix, iy = tile_key
+            tile_node = self.root.attachNewNode(f"tile_{ix}_{iy}")
+            self.tiles[tile_key] = tile_node
+        return self.tiles[tile_key]
+    
+    def _make_geomnode_from_extrusion(self, geom: BaseGeometry, height: float, name: str, color: Optional[tuple[float, float, float, float]] = None,) -> NodePath:
         """
-        if poly is None or poly.is_empty:
+        Create a Panda3D GeomNode from an extruded polygonal geometry.
+
+        Supports:
+        - Polygon
+        - MultiPolygon
+        - GeometryCollection containing polygonal parts
+        """
+        geom = _repair_geom(geom)
+        if geom is None:
             return NodePath(name)
 
-        fmt = GeomVertexFormat.getV3n3()
+        # Position + normal + texture coordinates
+        fmt = GeomVertexFormat.getV3n3t2()
         vdata = GeomVertexData(name, fmt, Geom.UHStatic)
         vwriter = GeomVertexWriter(vdata, "vertex")
         nwriter = GeomVertexWriter(vdata, "normal")
+        twriter = GeomVertexWriter(vdata, "texcoord")
         prim = GeomTriangles(Geom.UHStatic)
 
-        def add_tri(p0, p1, p2, normal):
+        # Texture scaling controls
+        cap_uv_scale = 0.02   # flat surfaces
+        side_u_scale = 0.02   # along wall length
+        side_v_scale = 0.10   # vertical repeat
+
+        def add_tri(p0, p1, p2, normal, uv0, uv1, uv2):
             start_index = vdata.getNumRows()
-            for p in (p0, p1, p2):
+            for p, uv in ((p0, uv0), (p1, uv1), (p2, uv2)):
                 vwriter.addData3f(float(p[0]), float(p[1]), float(p[2]))
                 nwriter.addData3f(float(normal[0]), float(normal[1]), float(normal[2]))
+                twriter.addData2f(float(uv[0]), float(uv[1]))
             prim.addVertices(start_index, start_index + 1, start_index + 2)
             prim.closePrimitive()
 
@@ -192,57 +251,92 @@ class CityMeshBuilder:
                 return []
             if np.allclose(pts[0], pts[-1]):
                 pts = pts[:-1]
+            if len(pts) < 2:
+                return []
             return [(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))]
 
-        # Top / bottom caps via triangulation, filtered to the polygon interior.
-        cap_tris = _polygon_valid_tris(poly)
-        for tri in cap_tris:
-            coords = list(tri.exterior.coords)[:3]
-            p0 = np.array([coords[0][0], coords[0][1], 0.0])
-            p1 = np.array([coords[1][0], coords[1][1], 0.0])
-            p2 = np.array([coords[2][0], coords[2][1], 0.0])
-            # Bottom face
-            add_tri(p0, p2, p1, np.array([0.0, 0.0, -1.0]))
-            # Top face
-            p0t = p0.copy(); p0t[2] = height
-            p1t = p1.copy(); p1t[2] = height
-            p2t = p2.copy(); p2t[2] = height
-            add_tri(p0t, p1t, p2t, np.array([0.0, 0.0, 1.0]))
+        def cap_uv(x: float, y: float) -> tuple[float, float]:
+            return (x * cap_uv_scale, y * cap_uv_scale)
 
-        # Side walls for exterior + holes.
-        for ring in [poly.exterior, *list(poly.interiors)]:
-            for p0_xy, p1_xy in ring_segments(ring.coords):
-                x0, y0 = float(p0_xy[0]), float(p0_xy[1])
-                x1, y1 = float(p1_xy[0]), float(p1_xy[1])
+        def add_polygon(poly: Polygon):
+            poly = orient(poly, sign=1.0)
 
-                b0 = np.array([x0, y0, 0.0])
-                b1 = np.array([x1, y1, 0.0])
-                t0 = np.array([x0, y0, height])
-                t1 = np.array([x1, y1, height])
+            # Top / bottom caps
+            cap_tris = _polygon_valid_tris(poly)
+            for tri in cap_tris:
+                coords = list(tri.exterior.coords)[:3]
+                p0 = np.array([coords[0][0], coords[0][1], 0.0], dtype=float)
+                p1 = np.array([coords[1][0], coords[1][1], 0.0], dtype=float)
+                p2 = np.array([coords[2][0], coords[2][1], 0.0], dtype=float)
 
-                edge = np.array([x1 - x0, y1 - y0, 0.0], dtype=float)
-                up = np.array([0.0, 0.0, 1.0], dtype=float)
-                normal = _face_normal(b0, b1, t1)
-                if np.linalg.norm(normal) < EPS:
-                    normal = np.cross(edge, up)
-                    nrm = np.linalg.norm(normal)
-                    if nrm < EPS:
-                        normal = np.array([0.0, 1.0, 0.0], dtype=float)
+                uv0 = cap_uv(coords[0][0], coords[0][1])
+                uv1 = cap_uv(coords[1][0], coords[1][1])
+                uv2 = cap_uv(coords[2][0], coords[2][1])
+
+                # bottom
+                add_tri(p0, p2, p1,
+                        np.array([0.0, 0.0, -1.0], dtype=float),
+                        uv0, uv2, uv1)
+
+                # top
+                p0t = p0.copy(); p0t[2] = height
+                p1t = p1.copy(); p1t[2] = height
+                p2t = p2.copy(); p2t[2] = height
+                add_tri(p0t, p1t, p2t,
+                        np.array([0.0, 0.0, 1.0], dtype=float),
+                        uv0, uv1, uv2)
+
+            # Side walls for exterior + holes
+            for ring in _iter_rings(poly):
+                coords = list(ring.coords)
+                ccw = ring.is_ccw
+
+                for p0_xy, p1_xy in ring_segments(coords):
+                    x0, y0 = float(p0_xy[0]), float(p0_xy[1])
+                    x1, y1 = float(p1_xy[0]), float(p1_xy[1])
+
+                    b0 = np.array([x0, y0, 0.0], dtype=float)
+                    b1 = np.array([x1, y1, 0.0], dtype=float)
+                    t0 = np.array([x0, y0, height], dtype=float)
+                    t1 = np.array([x1, y1, height], dtype=float)
+
+                    edge_len = float(np.linalg.norm(np.array([x1 - x0, y1 - y0], dtype=float)))
+                    u0 = 0.0
+                    u1 = edge_len * side_u_scale
+                    v0 = 0.0
+                    v1 = height * side_v_scale
+
+                    edge = np.array([x1 - x0, y1 - y0, 0.0], dtype=float)
+                    up = np.array([0.0, 0.0, 1.0], dtype=float)
+                    normal = _face_normal(b0, b1, t1)
+                    if np.linalg.norm(normal) < EPS:
+                        normal = np.cross(edge, up)
+                        nrm = np.linalg.norm(normal)
+                        if nrm < EPS:
+                            normal = np.array([0.0, 1.0, 0.0], dtype=float)
+                        else:
+                            normal = normal / nrm
+
+                    # Exterior and hole rings need opposite winding
+                    if ccw:
+                        add_tri(b0, b1, t1, normal, (u0, v0), (u1, v0), (u1, v1))
+                        add_tri(b0, t1, t0, normal, (u0, v0), (u1, v1), (u0, v1))
                     else:
-                        normal = normal / nrm
+                        add_tri(b0, t1, b1, normal, (u0, v0), (u1, v1), (u1, v0))
+                        add_tri(b0, t0, t1, normal, (u0, v0), (u0, v1), (u1, v1))
 
-                # Use ring order to keep winding consistent.
-                add_tri(b0, b1, t1, normal)
-                add_tri(b0, t1, t0, normal)
+        for poly in _iter_polygon_parts(geom):
+            add_polygon(poly)
 
         node = GeomNode(name)
-        geom = Geom(vdata)
-        geom.addPrimitive(prim)
-        node.addGeom(geom)
-        return NodePath(node)
-
-    def _add_asset(self, name: str, nodepath: NodePath, kind: str, source_index: int, metadata: dict):
-        nodepath.reparentTo(self.root)
+        g = Geom(vdata)
+        g.addPrimitive(prim)
+        node.addGeom(g)
+        return NodePath(node)   
+     
+    def _add_asset(self, name: str, nodepath: NodePath, kind: str, source_index: int, metadata: dict, tile_key):
+        parent = self._get_tile_node(tile_key)
+        nodepath.reparentTo(parent)
         self.assets.append(
             MeshAsset(
                 name=name,
@@ -273,6 +367,8 @@ class CityMeshBuilder:
                 height = DEFAULT_BUILDING_HEIGHT
 
             base_z = self.sample_ground_z(poly)
+            x, y = _representative_xy(poly)
+            tile_key = self._tile_key(x, y)
             node = self._make_geomnode_from_extrusion(poly, height, f"building_{len(self.assets)}")
             node.setZ(base_z)
 
@@ -282,6 +378,7 @@ class CityMeshBuilder:
                 kind="building",
                 source_index=asset_idx,
                 metadata={"height_m": float(height), "base_z": float(base_z)},
+                tile_key=tile_key,
             )
 
     def add_roads(self, roads: gpd.GeoDataFrame):
@@ -306,7 +403,8 @@ class CityMeshBuilder:
                     pass
             if is_bridge:
                 base_z += BRIDGE_CLEARANCE
-
+            x, y = _representative_xy(geom)
+            tile_key = self._tile_key(x, y)
             node = self._make_geomnode_from_extrusion(
                 road_poly,
                 DEFAULT_ROAD_THICKNESS,
@@ -325,6 +423,7 @@ class CityMeshBuilder:
                     "base_z": float(base_z),
                     "bridge": bool(is_bridge),
                 },
+                tile_key=tile_key,
             )
 
     def add_bridges(self, roads: gpd.GeoDataFrame):
@@ -358,6 +457,8 @@ class CityMeshBuilder:
                 continue
 
             base_z = self.sample_ground_z(geom) + BRIDGE_CLEARANCE
+            x, y = _representative_xy(geom)
+            tile_key = self._tile_key(x, y)
             node = self._make_geomnode_from_extrusion(
                 road_poly,
                 DEFAULT_ROAD_THICKNESS,
@@ -376,6 +477,7 @@ class CityMeshBuilder:
                     "base_z": float(base_z),
                     "bridge": True,
                 },
+                tile_key=tile_key,
             )
 
     def add_water(self, water: gpd.GeoDataFrame):
@@ -386,6 +488,8 @@ class CityMeshBuilder:
             if poly is None:
                 continue
             z = self.sample_ground_z(poly)
+            x, y = _representative_xy(poly)
+            tile_key = self._tile_key(x, y)
             node = self._make_geomnode_from_extrusion(
                 poly,
                 DEFAULT_WATER_THICKNESS,
@@ -398,6 +502,7 @@ class CityMeshBuilder:
                 kind="water",
                 source_index=asset_idx,
                 metadata={"surface_z": float(z)},
+                tile_key=tile_key,
             )
 
     def add_parks(self, parks: gpd.GeoDataFrame):
@@ -408,6 +513,8 @@ class CityMeshBuilder:
             if poly is None:
                 continue
             z = self.sample_ground_z(poly)
+            x, y = _representative_xy(poly)
+            tile_key = self._tile_key(x, y)
             node = self._make_geomnode_from_extrusion(
                 poly,
                 DEFAULT_PARK_THICKNESS,
@@ -420,17 +527,164 @@ class CityMeshBuilder:
                 kind="park",
                 source_index=asset_idx,
                 metadata={"surface_z": float(z)},
+                tile_key=tile_key,
             )
+            
+    def _write_obj_from_nodepath(self, nodepath: NodePath, fh, object_name: str, vertex_offset: int) -> int:
+        node = nodepath.node()
+        if not hasattr(node, "getNumGeoms"):
+            return vertex_offset
 
-    def export_bam(self, filename: str = "city.bam", flatten: bool = True) -> Path:
+        fh.write(f"o {object_name}\n")
+        fh.write(f"g {object_name}\n")
+
+        for geom_index in range(node.getNumGeoms()):
+            geom = node.getGeom(geom_index)
+            vdata = geom.getVertexData()
+            vreader = GeomVertexReader(vdata, "vertex")
+
+            nreader = None
+            try:
+                nreader = GeomVertexReader(vdata, "normal")
+            except Exception:
+                nreader = None
+
+            local_vertices = []
+            local_normals = []
+
+            while not vreader.isAtEnd():
+                v = vreader.getData3f()
+                local_vertices.append((float(v[0]), float(v[1]), float(v[2])))
+
+                if nreader is not None and not nreader.isAtEnd():
+                    n = nreader.getData3f()
+                    local_normals.append((float(n[0]), float(n[1]), float(n[2])))
+
+            for vx, vy, vz in local_vertices:
+                fh.write(f"v {vx:.6f} {vy:.6f} {vz:.6f}\n")
+            for nx, ny, nz in local_normals:
+                fh.write(f"vn {nx:.6f} {ny:.6f} {nz:.6f}\n")
+
+            for prim_index in range(geom.getNumPrimitives()):
+                prim = geom.getPrimitive(prim_index)
+                for p in range(prim.getNumPrimitives()):
+                    s = prim.getPrimitiveStart(p)
+                    e = prim.getPrimitiveEnd(p)
+                    if e - s != 3:
+                        continue
+                    i0 = prim.getVertex(s + 0) + 1 + vertex_offset
+                    i1 = prim.getVertex(s + 1) + 1 + vertex_offset
+                    i2 = prim.getVertex(s + 2) + 1 + vertex_offset
+                    fh.write(f"f {i0} {i1} {i2}\n")
+
+            vertex_offset += len(local_vertices)
+
+        return vertex_offset
+    
+    def _iter_polygon_rings(self, geom):
+        if geom is None or geom.is_empty:
+            return
+
+        if geom.geom_type == "Polygon":
+            yield geom
+
+        elif geom.geom_type == "MultiPolygon":
+            for part in geom.geoms:
+                yield part
+
+        elif geom.geom_type == "GeometryCollection":
+            for part in geom.geoms:
+                yield from self._iter_polygon_rings(part)
+                
+    def export_bam(self, filename: str = "city.bam", flatten: bool = False) -> Path:
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        out_path = Path(self.output_dir, filename)
+
+        # if flatten:
+        #     self.root.flattenStrong()
+        self.root.writeBamFile(str(out_path))
+        return out_path
+    
+    def export_obj(self, filename: str = "city.obj") -> Path:
+        """Export the city as a Wavefront OBJ file."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
         out_path = self.output_dir / filename
 
-        if flatten:
-            self.root.flattenStrong()
-        self.root.writeBamFile(str(out_path))
+        with out_path.open("w", encoding="utf-8") as fh:
+            fh.write("# City mesh export\n")
+            fh.write(f"# assets={len(self.assets)}\n")
+            fh.write("mtllib city.mtl\n")
+
+            vertex_offset = 0
+            for asset in self.assets:
+                vertex_offset = self._write_obj_from_nodepath(
+                    asset.nodepath,
+                    fh,
+                    asset.name,
+                    vertex_offset,
+                )
+
+        mtl_path = self.output_dir / "city.mtl"
+        with mtl_path.open("w", encoding="utf-8") as fh:
+            fh.write("newmtl default\n")
+            fh.write("Kd 0.8 0.8 0.8\n")
+
         return out_path
 
+    def _load_texture(self, texture_path: str) -> Texture:
+        tex = TexturePool.loadTexture(texture_path)
+        if tex is None:
+            raise FileNotFoundError(f"Could not load texture: {texture_path}")
+        return tex
+
+
+    def _building_texture_for_height(self, height_m: float, texture_rules):
+        """
+        texture_rules: list of (height_max, texture_path), sorted low->high
+        Example:
+            [(10, "low.png"), (25, "mid.png"), (1e9, "high.png")]
+        """
+        for height_max, tex_path in texture_rules:
+            if height_m <= height_max:
+                return tex_path
+        return texture_rules[-1][1]
+
+
+    def apply_textures(
+        self,
+        building_rules,
+        road_texture_path: str,
+        park_texture_path: str,
+        water_texture_path: str,
+    ):
+        """
+        building_rules: list of (height_max, texture_path)
+        """
+        road_tex = self._load_texture(road_texture_path)
+        park_tex = self._load_texture(park_texture_path)
+        water_tex = self._load_texture(water_texture_path)
+        tex_stage = TextureStage("tex")
+
+        for asset in self.assets:
+            if asset.kind == "building":
+                h = float(asset.metadata.get("height_m", 8.0))
+                tex_path = self._building_texture_for_height(h, building_rules)
+                tex = self._load_texture(tex_path)
+                asset.nodepath.setTexture(tex_stage, tex, 1)
+
+            elif asset.kind == "road":
+                asset.nodepath.setTexture(tex_stage, road_tex, 1)
+
+            elif asset.kind == "park":
+                asset.nodepath.setTexture(tex_stage, park_tex, 1)
+
+            elif asset.kind == "water":
+                asset.nodepath.setTexture(tex_stage, water_tex, 1)
+
+            elif asset.kind == "bridge":
+                # optional: reuse road texture or give a bridge texture
+                asset.nodepath.setTexture(tex_stage, road_tex, 1)
+    
     def export_manifest_csv(self) -> Path:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         records = []
