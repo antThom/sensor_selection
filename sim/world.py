@@ -3,7 +3,7 @@ from panda3d.bullet import BulletWorld
 from panda3d.core import Vec3
 import yaml
 
-from sim.loaders.simulation_manager import SimulationManager
+from sim.rendering.simulation_manager import SimulationManager
 from sim.loaders.agent_loader import AgentLoader
 from sim.loaders.environment_loader import EnvironmentLoader
 from sim.loaders.object_loader import ObjectLoader
@@ -25,6 +25,10 @@ class WORLD(ShowBase):
 
         yaml_config = extract_yaml_configurations(config_file)
 
+        self.agent_list = list()
+        self.camera_list = [base.camera]
+        
+
         # Load physics simulation with pybullet
         self.world = BulletWorld()
         self.world.setGravity(Vec3(0, 0, -9.81))
@@ -45,8 +49,7 @@ class WORLD(ShowBase):
 
         self.object_loader = ObjectLoader(self)
         self.object_loader.load_objects(yaml_config=yaml_config, object_type="static")
-
-        self.agent_list = list()
+        
         self.sensor_loader = SensorLoader()
 
         self.thermal_model = None
@@ -54,5 +57,12 @@ class WORLD(ShowBase):
         self.agent_loader = AgentLoader(yaml_config, self)
         self.agent_loader.load_agents()
 
-        # Starts Event handlers
+        # Cameras
         self.camera_controls = CameraControls(self)
+        
+        # keybind corner
+        self.accept("c", self.camera_controls.camera_list_forward)
+        self.accept("x", self.camera_controls.camera_list_back)
+        self.accept("z", self.camera_controls.save_current_camera_image, [self.camera_controls.camera_index])
+        
+        
