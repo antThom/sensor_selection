@@ -1,8 +1,12 @@
-from direct.showbase import DirectObject
+from direct.showbase import DirectObject, ShowBase
 from direct.task import Task
 import numpy as np
 from scipy.spatial.transform import Rotation
-
+from panda3d.core import PNMImage, PNMImageHeader, DisplayRegion
+import datetime
+from PIL import Image
+import os
+ 
 
 class CameraControls(DirectObject.DirectObject):
     #     """
@@ -19,7 +23,10 @@ class CameraControls(DirectObject.DirectObject):
         pass
 
 
-#         self.world = world
+        self.world = world
+        self.camera_index = 0
+        self.old_index = -1
+
 #         self.world.disableMouse()  # Disables default panda3D mouse controls
 
 #         self.mouse_x = world.mouseWatcherNode.getMouseX()
@@ -99,3 +106,88 @@ class CameraControls(DirectObject.DirectObject):
 
 #         array = np.array([0, 1, 0])
 #         self.world.camera.setPos(array.dot(self.camera_perspective))
+
+    ## Event methods to call when changing the camera
+
+    # """ Keeps track of camera index """
+
+    def camera_list_forward(self) -> None:
+        """ Switches the camera to the next camera in the list"""
+        
+       # print(f"Camera List Forward! Current Camera Index is:{self.camera_index}. Current Old Index is{self.old_index}" )
+        self.old_index = self.camera_index
+        self.camera_index += 1
+        self.change_camera(self.camera_index, self.old_index)
+        #print(f"Changed! Current Camera Index is:{self.camera_index}. Current Old Index is{self.old_index}" )
+
+    def camera_list_back(self) -> None:
+        """ Switches the camera in use to the previous camera in the list"""
+       # print(f"Camera List Backwards! Current Camera Index is:{self.camera_index}. Current Old Index is{self.old_index}" )
+        self.old_index = self.camera_index
+        self.camera_index -= 1
+        self.change_camera(self.camera_index, self.old_index)
+      #  print(f"Changed! Current Camera Index is:{self.camera_index}. Current Old Index is{self.old_index}" )
+        
+
+
+    def change_camera(self, index: int, old_index=None) -> None:
+        """_summary_
+        Switches the currently rendering camera in `world.camera_list` to the index given
+        Args:
+            index (int): index of camera in list
+        """
+        
+        # Fix going over and under
+        self.camera_index = abs(index % len(self.world.camera_list))
+        self.old_index = abs(old_index % len(self.world.camera_list))
+            
+        # Index 0 will always be the base camera class,
+        # which does not have a display region and will always render.
+        # Do nothing for default base camera
+            
+        if self.old_index == 0:
+            pass
+        elif self.old_index:
+            self.world.camera_list[self.old_index].display_region.setActive(False)
+
+        if self.camera_index == 0:    
+            pass
+        else:
+            self.world.camera_list[self.camera_index].display_region.setActive(True)
+
+    def save_current_camera_image(self, camera_list_index: int) -> None:
+        """_summary_
+        Takes in the current camera view index, and from it's DisplayRegion, capture a PMN Image.
+        Args:
+            camera_list_index (int): _description_
+        """
+        
+        print(f"Print screen was called on {camera_list_index}")
+        print(f"Index was {self.camera_index}")
+        print(f"List is {self.world.camera_list}")
+        
+        if camera_list_index == 0:
+            image_to_save = PNMImage()            
+            base.win.getScreenshot(image_to_save)
+            result = image_to_save.write("\\logs\\buffer\\buffer.ppm")
+        if camera_list_index != 0: # Might grab default camera, which has non of our api!    
+            current_display = self.world.camera_list[camera_list_index].display_region
+
+            image_to_save = PNMImage()            
+            current_display.getScreenshot(image_to_save)
+            result = image_to_save.write("\\logs\\buffer\\buffer.ppm")
+            print(result)
+        
+        export_image_buffer(f"{datetime.datetime.now().strftime("%d-%m-%Y %H.%M.%S")}.png")
+            
+            
+            
+def export_image_buffer(filename: str, file_format="PNG") -> None:
+    """_summary_
+    Exports the most recent buffer into a file in the /log directory.
+    Args:
+        filename (str): The filename to name the file (with the file ending)
+        file_format (str): A Pillow 
+    """
+    with Image.open(os.path.join(".", "logs", "buffer", "buffer.ppm")) as im:
+        im.save(os.path.join(".", "logs", filename), file_format)

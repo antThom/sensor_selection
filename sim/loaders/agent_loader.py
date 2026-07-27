@@ -58,13 +58,14 @@ class AgentLoader:
                 new_sensor = self.world.sensor_loader.create_sensor(
                     sensor_config, 
                     agent_config_file["sensors"][sensor_config]["type"], 
-                    agent_config_file["sensors"][sensor_config])
+                    agent_config_file["sensors"][sensor_config],
+                    self.world)
 
                 # magic sensor configuration??????
                 new_agent.add_sensor(new_sensor, sensor_config)
 
                 sim_man.generate_simulation_node(new_sensor, agent_config_file["sensors"][sensor_config]["model"])
-            #    sim_man.cofigure_sim_model(new_sensor)
+                sim_man.configure_sim_model(new_sensor)
                 sim_man.parent_object_models(new_agent, new_sensor)
 
             # for model in agent_config_file["models"]:

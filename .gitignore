@@ -225,3 +225,4 @@ doxygen/
 # Hides any vs code folders and files
 .vscode/*
 .*/
+logs/*.png
