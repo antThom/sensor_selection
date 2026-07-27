@@ -1,16 +1,19 @@
-# camera.py
-import numpy as np
-import pybullet as p
-from sim.Sensors.sensor import Sensor  # import the CLASS, not the module
-from scipy.spatial.transform import Rotation as Rot
-from sim.Environment.Thermal.thermal_manager import ThermalManager
-import cv2
-import time
+""" The file for the EO camera, otherwise known as an RBG camera. """
 
+from sim.sensors.cameras.camera import Camera
 
-class IRCamera(Sensor):
-    def __init__(self, thermal_mgr: ThermalManager):
-        super().__init__()  # keep config in base
+class EOCamera(Camera):
+    """_summary_
+    The EO Camera class, otherwise known as an RBG camera.
+    
+    Args:
+        Camera (_type_): _description_
+    """
+    
+    def __init__(self):
+        super().__init__()
+        
+        # Set the default values. 
         self.fov = 64
         self.WIDTH = 640
         self.HEIGHT = 640  # was WIDTH before
@@ -26,16 +29,12 @@ class IRCamera(Sensor):
         self.near = 0.1
         self.far = 100.0
         self.input = None
-        self.encode = "ir"
-        self.temp_min = 200
-        self.temp_max = 350
-        self.netd_K = 0.05
-        self.k_atm =  0.05
+        self.output = "image"
+        self.encode = "rgb"
         self.up = [0, 1, 0]
-        self.aspect = self._WIDTH / self._HEIGHT
-        self.thermal_mgr = thermal_mgr
+        self.aspect = self.WIDTH / self.HEIGHT
         self.tf = {}
-
+        
     def get_output(self):
         """Render a frame given the camera position and target."""
         if self.agent is None:
@@ -81,7 +80,7 @@ class IRCamera(Sensor):
             pos_sensor.tolist(), target_world.tolist(), self.up
         )
         p.addUserDebugText(
-            "IR_CAM", pos_sensor.tolist(), textColorRGB=[1, 0, 0], lifeTime=0.1
+            "CAM", pos_sensor.tolist(), textColorRGB=[1, 0, 0], lifeTime=0.1
         )
 
         proj_matrix = p.computeProjectionMatrixFOV(
@@ -91,35 +90,13 @@ class IRCamera(Sensor):
         p.addUserDebugLine(
             pos_sensor.tolist(), target_world.tolist(), [1, 0, 0], 2, 0.1
         )
-        _, _, _, _, seg = p.getCameraImage(
+        _, _, rgb, _, _ = p.getCameraImage(
             self._WIDTH,
             self._HEIGHT,
             view_matrix,
             proj_matrix,
             renderer=p.ER_BULLET_HARDWARE_OPENGL,
         )
-        seg = np.asarray(seg).reshape(self._HEIGHT, self._WIDTH)
-        body_ids = seg & ((1 << 24) - 1)
-        link_index = (seg >> 24) - 1
-
-        # Query the temperature for each visible body
-        temp_map = np.zeros_like(seg, dtype=np.float32)
-        for bid in np.unique(body_ids):
-            mask = body_ids == bid
-            T = self.thermal_mgr.get_temperature(bid)
-            temp_map[mask] = T
-
-        # Add sensor noise & convert to displayable image
-        temp_map += np.random.normal(0, self.netd_K, temp_map.shape)
-        img8 = (
-            ((temp_map - self.temp_min) / (self.temp_max - self.temp_min) * 255)
-            .clip(0, 255)
-            .astype(np.uint8)
-        )
-        img_color = cv2.applyColorMap(img8, cv2.COLORMAP_BONE)
-        return img_color
-
-    def get_output():
-        """ To Implement by other classes"""
-        
-        raise NotImplementedError
+        img = np.reshape(rgb, (self._HEIGHT, self._WIDTH, 4))[:, :, :3]
+        # timestamp = time.time()
+        return img

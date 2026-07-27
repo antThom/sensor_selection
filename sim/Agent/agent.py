@@ -55,7 +55,7 @@ class Agent:
         # Actually adds and CONFIGURES the model to the agent
         pass
 
-    def add_sensor(self, sensor, **kwargs):
+    def add_sensor(self, sensor, *args, **kwargs):
         """_summary_
         Adds sensors to the model. You can add models to the agent.
         Args:

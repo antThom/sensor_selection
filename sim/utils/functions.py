@@ -53,3 +53,25 @@ def filter_arguements(valid_keys: dict, dict_to_filter, recuriveness=1) -> dict:
     Returns:
         dict: _description_
     """
+
+def set_attr_from_configuration(agent: object, config: dict) -> None:
+    """_summary_
+    Given an agent object and configuration, will edit the internal configurations of the
+    agent according to a configuration file
+
+    Args:
+        config (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    for key in config:
+        if key == "settings":
+            for i in config["settings"]:  # `settings` have internal wrap
+                setattr(agent, i, config["settings"][i])
+
+        if key in ["sensors", "sound", "animation"]:
+            continue
+
+        setattr(agent, key, config[key])
