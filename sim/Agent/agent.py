@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import pybullet as p
-import pybullet_data
+# # import pybullet_data
 from pathlib import Path
 from scipy.spatial.transform import Rotation as Rot
 from sim.environment.ThermalObject.ThermalObject import ThermalObject

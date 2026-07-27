@@ -4,7 +4,7 @@ import threading
 import time
 import json
 from sim.environment.thermal.thermal_manager import ThermalManager
-from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal
+# from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal
 from dataclasses import dataclass
 from typing import Any, Optional, Callable
 from enum import Enum
