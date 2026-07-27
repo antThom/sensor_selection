@@ -4,9 +4,7 @@ name:
 id:
 
 settings:
-  position: [-11111, 0, 0]
   velocity:
-  orientation:
   angular_rates:
   mass:
   agent_id:
@@ -14,13 +12,18 @@ settings:
   tf:
   file_path:
   max_vel:
-  scale: 0.01
+
   
 sensors:
   CameraSensor:
     type: "eo_camera"
-    config_path: "config\\sensors\\basic_eo_camear.yaml"
-    model: ".\\assets\\Agents\\Drone E58\\Drone E58.obj"
+    config_path: "config\\sensors\\basic_eo_camera.yaml"
 sound:
 animation:
-model: ".\\assets\\Agents\\Generic Quadcopter Drone.obj"
+
+model_configs:
+  model: ".\\assets\\Agents\\Generic Quadcopter Drone.obj"
+  position: [-0, 10, 50]
+  orientation:
+  color: [0, 0, 255]
+  scale: 0.1

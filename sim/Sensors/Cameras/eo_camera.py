@@ -1,6 +1,7 @@
 """ The file for the EO camera, otherwise known as an RBG camera. """
 
 from sim.sensors.cameras.camera import Camera
+from sim.sensors.sensor import SensorType
 
 class EOCamera(Camera):
     """_summary_
@@ -21,7 +22,7 @@ class EOCamera(Camera):
         self.fy = 3.0e-2  # y, not x
         self.c = [320, 320]
         self.forward = [0, 0, 1]
-        self.model = "pinhole"
+        self.camera_model = "pinhole"
         self.k1 = 0.0
         self.k2 = 0.0
         self.k3 =  0.0
@@ -34,4 +35,6 @@ class EOCamera(Camera):
         self.up = [0, 1, 0]
         self.aspect = self.WIDTH / self.HEIGHT
         self.tf = {}
+        
+        self.type = SensorType.EOCAMERA
         

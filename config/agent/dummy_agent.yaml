@@ -1,0 +1,30 @@
+%YAML 1.2
+---
+name:
+id:
+
+settings:
+  velocity:
+  angular_rates:
+  mass:
+  agent_id:
+  thermal:
+  tf:
+  file_path:
+  max_vel:
+  scale: 0.001
+  
+sensors:
+  DummySensor:
+    type: "dummy"
+    config_path: .\\"config\\sensors\\dummy_sensor.yaml"
+    model: ".\\assets\\Agents\\Basic Drone\\simple_drone.obj"
+sound:
+animation:
+
+model_configs:
+  model: ".\\assets\\Agents\\Generic Quadcopter Drone.obj"
+  position: [-10, -20, 0200]
+  orientation: [0, 45, 90] # In Yaw, pitch, roll in degrees
+  color:
+  scale: 0.1

@@ -5,6 +5,8 @@ the handler for interfacing and adding objects to panad3d
 from typing import Any
 from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
+from panda3d.core import NodePath, PandaNode
+
 
 class SimulationManager:
     """_summary_
@@ -28,7 +30,7 @@ class SimulationManager:
         """
         pass
 
-    def generate_simulation_node(self, object_to_change, model):
+    def generate_simulation_node(self, object_to_change, model, parent= None):
         """_summary_
 
         Attaches a Panda3D node to the object. Does not allow object to have animations
@@ -38,45 +40,24 @@ class SimulationManager:
             kwargs (Any): Additional special settings
         """
         
+        object_to_change.object_node = PandaNode(object_to_change.name)
+        object_to_change.object_node_path = NodePath(object_to_change.object_node)
         
-        object_to_change.actor = self.world.loader.loadModel(model)
-        object_to_change.actor.reparentTo(self.world.render)
+        try:
+            object_to_change.model_node = self.world.loader.loadModel(model)
+            object_to_change.model_node_path = NodePath(object_to_change.model_node)
+            object_to_change.model_node_path.reparentTo(object_to_change.object_node_path)
+        except (TypeError) as error:
+            print("No path for the model was listed. Check your configurations again!")
+            raise error
         
-        # Go through relevant attributes and set them to where the object is
-        object_to_change
-        
+    
+    def render_object(self, object):
+        if object.parent_node_path is not None:
+            object.object_node_path.reparentTo(object.parent_node_path)
+        else:
+            object.object_node_path.reparentTo(self.world.render)
 
-        
-    def configure_sim_model(self, object_to_change, **kwargs):
-        """_summary_
-        Configures the model to alternative configurations
-        
-        Args:
-            object (_type_): _description_
-        """
-
-        # TODO: Add kwargs options
-        # TODO: add parent option which modifies things like setPos
-        # Future me can do magic variable changes with match case and kwargs in
-        # configuration searching and other matching
-        
-        # object_to_change.actor.setPos(object_to_change.position[1,1], object_to_change.position[2,1], object_to_change.position[3,1])
-        object_to_change.actor.setPos(object_to_change.position[0],object_to_change.position[1],object_to_change.position[2])
-        object_to_change.actor.setScale(object_to_change.scale)
-            # object_to_change.actor.setHpr()
-            
-        
-        
-    def _configuration_keyword_matcher(self, config: dict) -> dict:
-        """_summary_
-        Filters through a configuration set and outputs a dictionary of configurations needed by the simulation manager
-
-        Args:
-            config (dict): Configuration from a JSON or YAML file
-
-        Returns:
-            dict: Dictionary of needed files
-        """
 
     def attach_sound(self, object, config) -> None:
         """_summary_
@@ -96,10 +77,8 @@ class SimulationManager:
             child (Any): _description_
         """
 
-        """
-        This function searches the attributes of the objects, finds where the model is located 
-        (should be named the same thing anyways if done by this manager), and changes the order of the 
-        node graph with minor overhead by the caller.
-        """
+        child.parent_node_path = parent.object_node_path
+        child.object_node_path.reparentTo(parent.object_node_path)
 
-        pass
+    def configure_sim_model(self, object: Any):
+        object.configure_model()

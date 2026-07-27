@@ -50,7 +50,7 @@ class WORLD(ShowBase):
         self.object_loader = ObjectLoader(self)
         self.object_loader.load_objects(yaml_config=yaml_config, object_type="static")
         
-        self.sensor_loader = SensorLoader()
+        self.sensor_loader = SensorLoader(self)
 
         self.thermal_model = None
 
