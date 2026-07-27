@@ -1,7 +1,7 @@
 import numpy as np
 import time
 import pybullet as p
-import pybullet_data
+# import pybullet_data
 from sim.utils.CONSTANTS import *
 
 
