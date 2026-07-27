@@ -40,20 +40,23 @@ class SimulationManager:
             kwargs (Any): Additional special settings
         """
         
+        object_to_change.object_node = PandaNode(object_to_change.name)
+        object_to_change.object_node_path = NodePath(object_to_change.object_node)
         
         try:
-            object_to_change.object_node = self.world.loader.loadModel(model)
+            object_to_change.model_node = self.world.loader.loadModel(model)
+            object_to_change.model_node_path = NodePath(object_to_change.model_node)
+            object_to_change.model_node_path.reparentTo(object_to_change.object_node_path)
         except (TypeError) as error:
             print("No path for the model was listed. Check your configurations again!")
             raise error
         
-        object_to_change.object_node_path = NodePath(object_to_change.object_node)
     
     def render_object(self, object):
         if object.parent_node_path is not None:
-            object.object_node.reparentTo(object.parent_node_path)
+            object.object_node_path.reparentTo(object.parent_node_path)
         else:
-            object.object_node.reparentTo(self.world.render)
+            object.object_node_path.reparentTo(self.world.render)
 
 
     def attach_sound(self, object, config) -> None:

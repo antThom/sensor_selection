@@ -69,11 +69,11 @@ dynamic:
     color: ["",""]
 
 agents:
-  DummyAgent:
-    name: "DummyAgent"
-    config_path: "config\\agent\\dummy_agent.yaml"
-    id: 1
-  # BasicAgent:
+  # DummyAgent:
+  #   name: "DummyAgent"
+  #   config_path: "config\\agent\\dummy_agent.yaml"
+  #   id: 1
+  # # BasicAgent:
   #   name: "BasicAgent"
   #   config_path: "config\\agent\\basic_agent.yaml"
   #   id: 2

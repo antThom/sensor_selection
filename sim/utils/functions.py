@@ -78,7 +78,11 @@ def set_attr_from_configuration(agent: object, config: dict,*args, **kwargs) -> 
             else:
                 all_config_dict[key] = value
 
-    search_dictionary(config)
+    if isinstance(config, tuple) or isinstance(config, list):
+        for i in config:
+            search_dictionary(i)
+    else:
+        search_dictionary(config)
     search_dictionary(kwargs) # kwargs is a dictionary
     
     # Pick up any stray dictionaries that are passed

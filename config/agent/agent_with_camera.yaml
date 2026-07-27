@@ -17,8 +17,7 @@ settings:
 sensors:
   CameraSensor:
     type: "eo_camera"
-    config_path: "config\\sensors\\basic_eo_camear.yaml"
-    model: ".\\assets\\Agents\\Drone E58\\Drone E58.obj"
+    config_path: "config\\sensors\\basic_eo_camera.yaml"
 sound:
 animation:
 

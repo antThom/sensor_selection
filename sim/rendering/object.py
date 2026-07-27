@@ -1,6 +1,7 @@
 """ Script that handles all the object rendering. """
 
 from sim.utils.functions import set_attr_from_configuration
+from panda3d.core import PandaNode, NodePath
 
 class RenderableObject():
     """_summary_
@@ -21,9 +22,12 @@ class RenderableObject():
         self.color = [255, 255, 255] # In the format of RGB
         self.scale = 1
         
-        self.object_node = None
+        self.object_node = None # Dummy node to hold all nodes related to an object.
         self.object_node_path = None
         self.parent_node_path = None
+        
+        self.model_node = None
+        self.model_node_path = None
         
         self.model: str = ""
         self.animations: list = list()

@@ -22,6 +22,7 @@ settings:
   k3:
   k4:
   near:
+  far:
   forward_angle:
 
 
@@ -30,5 +31,5 @@ model_configs:
   position: [-0, 0, 0]
   orientation: [90, 45, 90]
   color: [0, 0, 100]
-  scale: 20
+  scale: 1
 

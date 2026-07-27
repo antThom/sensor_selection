@@ -55,15 +55,14 @@ class AgentLoader:
             # load sensors (sensor loader will deal with it)
             for sensor_config in agent_config_file["sensors"]:
                 new_sensor = self.world.sensor_loader.create_sensor(
-                    sensor_config, 
                     agent_config_file["sensors"][sensor_config]["type"], 
                     agent_config_file["sensors"][sensor_config],
-                    self.world)
+                    extract_yaml_configurations(agent_config_file["sensors"][sensor_config]["config_path"]))
 
 
-                sim_man.generate_simulation_node(new_sensor, agent_config_file["sensors"][sensor_config]["model"])
-                sim_man.configure_sim_model(new_sensor)
+                sim_man.generate_simulation_node(new_sensor, new_sensor.model)
                 sim_man.parent_object_models(new_agent, new_sensor)
+                sim_man.configure_sim_model(new_sensor)
 
                 self.world.sensor_loader.setup_sensor(new_sensor)
                 sim_man.render_object(new_sensor)
