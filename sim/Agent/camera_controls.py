@@ -146,12 +146,12 @@ class CameraControls(DirectObject.DirectObject):
         # Do nothing for default base camera
             
         if self.old_index == 0:
-            pass
+            base.camera.detachNode()
         elif self.old_index:
             self.world.camera_list[self.old_index].display_region.setActive(False)
 
         if self.camera_index == 0:    
-            pass
+            base.camera.reparentTo(self.world.render)
         else:
             self.world.camera_list[self.camera_index].display_region.setActive(True)
 

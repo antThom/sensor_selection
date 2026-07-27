@@ -16,7 +16,7 @@ class DummySensor(Sensor):
         self.model = None
         self.sensor_id = None
         self.type = SensorType.DUMMY
-        self.name = None
+        self.name = "dummy"
     
 
         

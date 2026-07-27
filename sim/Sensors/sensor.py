@@ -112,14 +112,17 @@ from sim.utils.functions import set_attr_from_configuration
 #             # rate_hz <= 0: run as fast as possible (usually NOT what you want)
 #             time.sleep(0.0)
 
+from sim.rendering.object import RenderableObject
 
-class Sensor(ABC):
+
+class Sensor(ABC, RenderableObject):
     """_summary_
     The sensor factory class for creating sensors. An abstract method
     """
     
     @abstractmethod
     def __init__(self):
+        super().__init__()
         # self._capture_thread = None
         # self._running = False
         # self._rate_hz = config.get("frame_rate", 10)
@@ -132,16 +135,6 @@ class Sensor(ABC):
         self.tf = {}
         # self.signals = FrameSignal()
         # self._lock = threading.Lock()
-        
-
-        self.name = ""
-        self.parent_node = None # For other things in panda3d to attach here
-        self.model = None
-         
-        # Model Defaults for things
-        self.scale = 1
-        self.color = None
-        self.position = [0, 0, 0]
         
         
         self.agent = None
@@ -162,14 +155,6 @@ class Sensor(ABC):
         self.agent = agent
 
 
-    def set_attributes(self, config:dict) -> None:
-        """_summary_
-        Overload of initalization created with loading it's own attributes
-        Args:
-            config (dict): _description_
-        """
-        
-        set_attr_from_configuration(self, config)
         
     # # --------- FIXED-RATE CAPTURE LOOP ----------
     # def start_capture(self, rate_hz=None):
