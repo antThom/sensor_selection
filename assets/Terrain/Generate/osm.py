@@ -173,6 +173,48 @@ class OSMDownloader:
         out["height_m"] = out["height_m"].fillna(8.0)
         return out
 
+    def _attach_landuse_to_buildings(
+        self,
+        buildings: gpd.GeoDataFrame,
+        landuse: Optional[gpd.GeoDataFrame],
+        landuse_column: str = "landuse",
+        output_column: str = "landuse_tag",
+    ) -> gpd.GeoDataFrame:
+        """Attach the overlapping land-use label to each building footprint.
+
+        This uses a spatial join against the landuse polygons. If a building
+        intersects multiple land-use polygons, the first match is kept.
+        """
+        if buildings is None or buildings.empty:
+            return buildings
+
+        out = buildings.copy()
+        out[output_column] = None
+
+        if landuse is None or landuse.empty or landuse_column not in landuse.columns:
+            return out
+
+        lu = landuse[[landuse_column, "geometry"]].copy()
+        lu = lu[~lu.geometry.isna()]
+        lu = lu[~lu.geometry.is_empty]
+        lu = lu[~lu[landuse_column].isna()]
+        if lu.empty:
+            return out
+
+        try:
+            joined = gpd.sjoin(out, lu, how="left", predicate="intersects")
+            if "index_right" in joined.columns:
+                joined = joined.drop(columns=["index_right"])
+            joined = joined.rename(columns={landuse_column: output_column})
+            if output_column not in joined.columns:
+                joined[output_column] = None
+            # Keep one row per building footprint.
+            joined = joined[~joined.index.duplicated(keep="first")]
+            return joined
+        except Exception as e:
+            print(f"[WARN] Could not attach landuse to buildings: {e}")
+            return out
+
     def _cache_paths(self, stem: str, suffix: str) -> Path:
         return self.cache_dir / f"{stem}{suffix}"
 
@@ -267,6 +309,7 @@ class OSMDownloader:
         add_elevation: bool = False,
         use_cache: bool = True,
         save_cache: bool = True,
+        landuse_gdf: Optional[gpd.GeoDataFrame] = None,
     ) -> gpd.GeoDataFrame:
         stem = self._gdf_cache_stem("buildings", place)
         if use_cache and not self.overwrite:
@@ -278,6 +321,8 @@ class OSMDownloader:
         gdf = self._project(self._clean(gdf))
         gdf = self._filter_min_area(gdf)
         gdf = self._add_building_metadata(gdf)
+        if landuse_gdf is not None:
+            gdf = self._attach_landuse_to_buildings(gdf, landuse_gdf)
         if add_elevation:
             gdf = self._add_elevation_column(gdf, col_name="ground_z")
         if save_cache:
@@ -291,6 +336,7 @@ class OSMDownloader:
         use_cache: bool = True,
         save_cache: bool = True,
         cache_name: Optional[str] = None,
+        landuse_gdf: Optional[gpd.GeoDataFrame] = None,
     ) -> gpd.GeoDataFrame:
         stem = self._gdf_cache_stem("buildings", cache_name or f"point_{point[0]}_{point[1]}")
         if use_cache and not self.overwrite:
@@ -302,6 +348,8 @@ class OSMDownloader:
         gdf = self._project(self._clean(gdf))
         gdf = self._filter_min_area(gdf)
         gdf = self._add_building_metadata(gdf)
+        if landuse_gdf is not None:
+            gdf = self._attach_landuse_to_buildings(gdf, landuse_gdf)
         if add_elevation:
             gdf = self._add_elevation_column(gdf, col_name="ground_z")
         if save_cache:
@@ -655,12 +703,18 @@ class OSMDownloader:
         use_cache: bool = True,
         save_cache: bool = True,
     ) -> OSMCityBundle:
-        buildings = self.buildings_from_place(place, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache)
+        landuse = self.features_from_place(place, tags={"landuse": True}, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=f"landuse__{place}")
+        buildings = self.buildings_from_place(
+            place,
+            add_elevation=add_elevation,
+            use_cache=use_cache,
+            save_cache=save_cache,
+            landuse_gdf=landuse,
+        )
         road_nodes, road_edges = self.roads_from_place(place, network_type=network_type, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache)
         bridges = self.bridges_from_place(place, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache)
         water = self.water_from_place(place, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache)
         parks = self.parks_from_place(place, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache)
-        landuse = self.features_from_place(place, tags={"landuse": True}, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=f"landuse__{place}")
         railways = self.railways_from_place(place, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache)
         trees = self.trees_from_place(place, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache)
 
@@ -686,12 +740,19 @@ class OSMDownloader:
         cache_name: Optional[str] = None,
     ) -> OSMCityBundle:
         suffix = cache_name or f"point_{point[0]}_{point[1]}"
-        buildings = self.buildings_from_point(point, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=suffix)
+        landuse = self.features_from_point(point, tags={"landuse": True}, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=f"landuse__{suffix}")
+        buildings = self.buildings_from_point(
+            point,
+            add_elevation=add_elevation,
+            use_cache=use_cache,
+            save_cache=save_cache,
+            cache_name=suffix,
+            landuse_gdf=landuse,
+        )
         road_nodes, road_edges = self.roads_from_point(point, network_type=network_type, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=suffix)
         bridges = self.bridges_from_point(point, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=suffix)
         water = self.water_from_point(point, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=suffix)
         parks = self.parks_from_point(point, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=suffix)
-        landuse = self.features_from_point(point, tags={"landuse": True}, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=f"landuse__{suffix}")
         railways = self.railways_from_point(point, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=suffix)
         trees = self.trees_from_point(point, add_elevation=add_elevation, use_cache=use_cache, save_cache=save_cache, cache_name=suffix)
 

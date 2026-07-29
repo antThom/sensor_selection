@@ -260,13 +260,13 @@ def main():
         
         builder.apply_textures(
             building_rules=[
-                (12.0, "assets/textures/building_low.png"),
-                (30.0, "assets/textures/building_mid.png"),
-                (1e9, "assets/textures/building_high.png"),
+                ("residential", Path("assets//textures//building_materials//bricks//Bricks097_1K-JPG//Bricks097_1K-JPG_Color.jpg")),
+                ("retail", Path("assets//textures//building_materials//bricks//Bricks101_1K-JPG//Bricks101_1K-JPG_Color.jpg")),
+                ("commercial", Path("assets//textures//building_materials//office//window-pattern-textures-building.jpg")),
             ],
             road_texture_path=Path("assets//textures//path//cement//Road007_1K-JPG//Road007.png"),
             park_texture_path=Path("assets//textures//path//grass//Grass001_1K-JPG//Grass001.png")
-            water_texture_path="assets/textures/water.png",
+            water_texture_path=Path("assets//textures//water//GPT_muted_green_water.png"),
         )
         
 
