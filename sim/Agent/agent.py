@@ -1,19 +1,12 @@
 import numpy as np
-import os
-import pybullet as p
-# # import pybullet_data
-from pathlib import Path
-from scipy.spatial.transform import Rotation as Rot
-from sim.environment.ThermalObject.ThermalObject import ThermalObject
-from sim.utils.CONSTANTS import *
 
-from sim.environment.ThermalObject.ThermalObject import ThermalObject
+from sim.Environment.ThermalObject import ThermalBody
 from sim.rendering.object import RenderableObject
 
 
-class Agent(RenderableObject):
-    def __init__(self):
-        super().__init__()
+class Agent(ThermalBody, RenderableObject):
+    def __init__(self, thermal_manager=None):
+        super().__init__(thermal_manager=thermal_manager)
 
         """
         Most of these variables contained here are class defaults
@@ -34,9 +27,8 @@ class Agent(RenderableObject):
         self.tf = {}
         self.max_vel = 1
 
-
     def get_id(self):
-        return self.agent_id
+        return getattr(self, "agent_id", None)
 
     """
     The add_* functions will have magic configuration. They will sort through almost anything and find what they're looking for.

@@ -1,6 +1,6 @@
 """File for holding the SensorLoader class and its utilities"""
 
-from sim.sensors.sensor import SensorType, Sensor
+from sim.Sensors.sensor import SensorType, Sensor
 from panda3d.core import PandaNode, Camera, NodePath
 
 class SensorLoader:
@@ -33,13 +33,13 @@ class SensorLoader:
             case "Microphone":
                 pass
             case "dummy":
-                from sim.sensors.dummy_sensor import DummySensor
+                from sim.Sensors.dummy_sensor import DummySensor
 
                 sensor = DummySensor()
                 sensor.set_configs(args)
                 sensor.type = SensorType.DUMMY
             case "eo_camera":
-                from sim.sensors.cameras.eo_camera import EOCamera
+                from sim.Sensors.Cameras.eo_camera import EOCamera
 
                 sensor = EOCamera()
                 sensor.set_configs(args)
