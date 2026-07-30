@@ -138,7 +138,7 @@ class Sensor(ABC, RenderableObject):
         
         
         self.agent = None
-        self.agent: SensorType = SensorType.EMPTY
+        self.type: SensorType = SensorType.EMPTY
 
     # @abstractmethod
     # def get_output(self):

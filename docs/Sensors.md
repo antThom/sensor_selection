@@ -27,6 +27,39 @@ Sensors that relate to sound are the `microphone` and `RGBSCamera`. They need to
 
 Infrared is used to find heat signatures of objects. `IRCamera` is currently the only sensor that uses this extensive system to do it's calculations.
 
+`IRCamera` is an agent-mounted Panda3D camera and a radiometric image model.
+The live scene camera follows the owning agent and can be selected with the
+simulation's camera controls:
+
+- Press `C` to move forward through the available camera views.
+- Press `X` to move backward through the available camera views.
+- Press `Z` to save the currently selected view.
+
+An IR camera is attached to an agent through the agent YAML:
+
+```yaml
+sensors:
+  Boson640:
+    type: "ir_camera"
+    config_path: "config\\sensors\\flir_boson_640.yaml"
+```
+
+The configuration files include detector resolution, frame rate, pixel pitch,
+spectral band, NETD, radiometric range, lens field of view, clipping planes,
+emissivity, atmospheric transmission, reflected temperature, output palette,
+and the camera-to-agent mount pose.
+
+Available examples:
+
+- `config/sensors/basic_ir_camera.yaml`
+- `config/sensors/flir_boson_640.yaml`
+- `config/sensors/flir_tau2_640.yaml`
+- `config/sensors/flir_hadron_640r.yaml`
+
+The live Panda3D view represents the IR sensor viewpoint. For radiometric
+processing, `temperature_to_image()` accepts a two-dimensional kelvin array and
+returns an 8-bit RGB image using white-hot, black-hot, or ironbow palettes.
+
 ## Configurations
 
 General configuration for all sensors are required as follows
