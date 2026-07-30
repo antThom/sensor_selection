@@ -4,11 +4,8 @@ This loads camera and agent controls (agents haven't been implemented yet)
 
 from math import pi, sin, cos
 
-from sim.agent.agent import Agent
+from sim.Agent.agent import Agent
 from sim.utils.functions import extract_yaml_configurations, set_attr_from_configuration
-
-from sim.environment.ThermalObject.ThermalObject import ThermalObject
-
 
 class AgentLoader:
     """_summary_
@@ -31,12 +28,16 @@ class AgentLoader:
             agent_config_file = extract_yaml_configurations(
                 self.config["agents"][agent_config]["config_path"]
             )
-            new_agent = Agent()
+            new_agent = Agent(thermal_manager=self.world.thermal_model)
 
             # Set configurations twice: once for the template file and second for the top level config
             set_attr_from_configuration(new_agent, agent_config_file)
             set_attr_from_configuration(
                 new_agent, self.config["agents"][agent_config]
+            )
+            new_agent.attach_thermal(
+                body_id=getattr(new_agent, "agent_id", None),
+                source=getattr(new_agent, "model", None) or new_agent.name,
             )
 
             # load math models somehow somewhere???

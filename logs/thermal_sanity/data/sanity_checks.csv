@@ -1,0 +1,11 @@
+check,passed,value,expected
+hot contact warms cube,True,338.70796318115026,> 300.0
+cold contact cools cube,True,241.9380552282746,< 300.0
+conduction matches analytical solution,True,0.007939225413110762,< 0.05 K max error
+convection removal rises with wind,True,654.6794266538172,> 0 kJ spread
+convection matches analytical solution,True,0.0225073751418563,< 0.05 K max error
+sun adds more radiation than shade,True,674.4399528632084,> 0 kJ spread
+sun case ends warmer than shade,True,21.410792154387764,> 0 K spread
+integrated heat matches temperature change,True,4.4792614062316716e-11,< 1e-6 kJ max error
+combined matrix has all cases,True,16,16 scenarios
+combined values are finite,True,23056,all rows finite
