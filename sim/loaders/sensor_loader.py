@@ -1,7 +1,8 @@
 """File for holding the SensorLoader class and its utilities"""
 
 from sim.sensors.sensor import SensorType, Sensor
-from panda3d.core import PandaNode, Camera, NodePath
+from panda3d.core import PandaNode, NodePath
+
 
 class SensorLoader:
     """_summary_
@@ -45,19 +46,17 @@ class SensorLoader:
                 sensor.set_configs(args)
                 sensor.type = SensorType.EOCAMERA
 
-
             case _:
                 pass
                 # Nothing matched, raise an error
 
         return sensor
-    
-    def setup_sensor(self, sensor:Sensor):
+
+    def setup_sensor(self, sensor: Sensor):
         match sensor.type:
             case SensorType.EOCAMERA:
-            #case "eo_camera":
+                # case "eo_camera":
                 self.setupEOCamera(sensor)
-        
 
     def setupEOCamera(self, sensor: Sensor):
         """_summary_
@@ -68,39 +67,37 @@ class SensorLoader:
             sensor (_type_): _description_
             world (_type_): _description_
         """
-        from panda3d.core import PerspectiveLens
+        from panda3d.core import PerspectiveLens, Camera
+        import sim.rendering.simulation_manager
         
+        
+
         sensor.camera_node = Camera(f"{sensor.name}_camera")
         sensor.camera_nodepath = NodePath(sensor.camera_node)
-        sensor.camera_nodepath.reparentTo(base.cam)
-        sensor.camera_nodepath.setX(100)
-        sensor.camera_nodepath.setZ(100)
-        sensor.camera_nodepath.setY(100)
-        sensor.camera_nodepath.setH(135)
+        sensor.camera_nodepath.reparentTo(sensor.object_node_path)
         
         sensor.display_region = self.world.win.makeDisplayRegion()
         sensor.display_region.setCamera(sensor.camera_nodepath)
         sensor.display_region.setActive(False)
         # Always force default display region and camera
         # Disabling all views means that default camera will remain.
-        sensor.display_region.setSort(5) 
-        
+        sensor.display_region.setSort(5)
+
         # Lens Configuration
         lens = PerspectiveLens()
-        
+
         lens.setFov(sensor.fov)
         lens.setAspectRatio(sensor.aspect)
         lens.setNear(sensor.near)
         lens.setFar(sensor.far)
         lens.setFilmSize(sensor.WIDTH, sensor.HEIGHT)
-        
+
         if sensor.focal_length is not None:
             lens.setFocalLength(sensor.focal_length)
-        
-        sensor.camera_node.setLens(lens)
-        
-        self.world.camera_list.append(sensor)
 
+        sensor.camera_node.setLens(lens)
+
+        self.world.camera_list.append(sensor)
 
     def register_sensor(self, sensor):
         pass

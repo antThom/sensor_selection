@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pybullet as p
+
 # # import pybullet_data
 from pathlib import Path
 from scipy.spatial.transform import Rotation as Rot
@@ -33,7 +34,6 @@ class Agent(RenderableObject):
         self.inertia = np.eye(3)
         self.tf = {}
         self.max_vel = 1
-
 
     def get_id(self):
         return self.agent_id

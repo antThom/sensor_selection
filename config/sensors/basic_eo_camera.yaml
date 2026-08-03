@@ -21,8 +21,8 @@ settings:
   k2:
   k3:
   k4:
-  near:
-  far:
+  near: 
+  far: 20000
   forward_angle:
 
 

@@ -21,36 +21,28 @@ ox.settings.use_cache = True
 ox.settings.log_console = True
 
 FEATURE_TAGS = {
-
     "buildings": {
         "building": True,
     },
-
     "water": {
         "natural": "water",
         "waterway": True,
     },
-
     "parks": {
         "leisure": "park",
     },
-
     "landuse": {
         "landuse": True,
     },
-
     "railways": {
         "railway": True,
     },
-
     "bridges": {
         "bridge": True,
     },
-
     "trees": {
         "natural": "tree",
-    }
-
+    },
 }
 
 

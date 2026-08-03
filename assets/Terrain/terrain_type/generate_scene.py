@@ -11,11 +11,12 @@ from pathlib import Path
 ox.settings.log_console = True
 ox.settings.use_cache = True
 
+
 def plot_place(place, network_type="drive", default_width=4):
     img_folder = Path("City")
     extension = "png"
     dpi = 40
-    fp = Path(img_folder,f"{place}.{extension}")
+    fp = Path(img_folder, f"{place}.{extension}")
     G = ox.graph.graph_from_address(
         place,
         dist=1000,
@@ -34,11 +35,12 @@ def plot_place(place, network_type="drive", default_width=4):
     )
     return fp
 
+
 def plot_point(place, point, network_type="drive", default_width=4):
-    img_folder = Path("City",f"{place}")
+    img_folder = Path("City", f"{place}")
     extension = "png"
     dpi = 40
-    fp = Path(img_folder,f"{place}.{extension}")
+    fp = Path(img_folder, f"{place}.{extension}")
     G = ox.graph.graph_from_point(
         point,
         dist=1000,
@@ -56,5 +58,6 @@ def plot_point(place, point, network_type="drive", default_width=4):
         close=True,
     )
     return fp
+
 
 fp = plot_place("Atlanta, Georgia, USA")
