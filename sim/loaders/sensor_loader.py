@@ -45,6 +45,8 @@ class SensorLoader:
                 sensor = EOCamera()
                 sensor.set_configs(args)
                 sensor.type = SensorType.EOCAMERA
+                
+
 
             case _:
                 pass
@@ -70,8 +72,7 @@ class SensorLoader:
         from panda3d.core import PerspectiveLens, Camera
         import sim.rendering.simulation_manager
         
-        
-
+    
         sensor.camera_node = Camera(f"{sensor.name}_camera")
         sensor.camera_nodepath = NodePath(sensor.camera_node)
         sensor.camera_nodepath.reparentTo(sensor.object_node_path)
@@ -82,7 +83,8 @@ class SensorLoader:
         # Always force default display region and camera
         # Disabling all views means that default camera will remain.
         sensor.display_region.setSort(5)
-
+        sensor.camera_nodepath.setPos(sensor.camera_offset[0], sensor.camera_offset[1], sensor.camera_offset[2])
+        sensor.camera_nodepath.setHpr(sensor.camera_angle[0], sensor.camera_angle[1], sensor.camera_angle[2])
         # Lens Configuration
         lens = PerspectiveLens()
 
@@ -96,6 +98,7 @@ class SensorLoader:
             lens.setFocalLength(sensor.focal_length)
 
         sensor.camera_node.setLens(lens)
+        sensor.model_node_path.setTwoSided(True)
 
         self.world.camera_list.append(sensor)
 

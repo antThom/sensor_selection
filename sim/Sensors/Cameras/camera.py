@@ -32,6 +32,11 @@ class Camera(Sensor):
         self.near = 0.1
         self.far = 2000.0
         self.focal_length = None
+        
+        # Applied to make the camera angle match with the model
+        self.camera_offset = [0, 0, 0]
+        self.camera_angle = [0, 0, 0] # In Degrees
+
 
         # Physics
         self.tf = {}

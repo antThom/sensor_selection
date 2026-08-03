@@ -22,14 +22,15 @@ settings:
   k3:
   k4:
   near: 
-  far: 20000
-  forward_angle:
+  far: 20000000
+  camera_offset: [100, 0, 25]
+  camera_angle: [180, 0, 0]
 
 
 model_configs:
   model: ".\\assets\\Sensors\\SLR_Camera\\10124_SLR_Camera_SG_V1_Iteration2.obj"
-  position: [-0, 0, 0]
-  orientation: [90, 45, 90]
+  position: [0, 0, 0]
+  orientation: [0, 0, 0]
   color: [0, 0, 100]
-  scale: 1
+  scale: 0.5
 

@@ -1,7 +1,6 @@
 """Script that handles all the object rendering."""
 
 from sim.utils.functions import set_attr_from_configuration
-from panda3d.core import PandaNode, NodePath
 
 
 class RenderableObject:
@@ -19,7 +18,7 @@ class RenderableObject:
         self.name = ""
 
         self.position = [0, 0, 0]
-        self.orentation = [0, 0, 0]
+        self.orientation = [0, 0, 0]
         self.color = [255, 255, 255]  # In the format of RGB
         self.scale = 1
 
@@ -67,7 +66,7 @@ class RenderableObject:
             )
 
         self.object_node_path.setHpr(
-            self.orentation[0], self.orentation[1], self.orentation[2]
+            self.orientation[0], self.orientation[1], self.orientation[2]
         )
         self.object_node_path.setScale(self.scale)
 
