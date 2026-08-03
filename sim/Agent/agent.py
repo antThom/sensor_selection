@@ -43,20 +43,24 @@ class Agent(ThermalBody, RenderableObject):
         # Actually adds and CONFIGURES the model to the agent
         pass
 
-    def add_sensor(self, sensor, *args, **kwargs):
-        """_summary_
-        Adds sensors to the model. You can add models to the agent.
-        Args:
-            sensor (_type_): _description_
+    def add_sensor(self, sensor, name=None):
+        """Attach a configured sensor to this agent.
+
+        The sensor keeps a reference to its owner so camera setup can parent
+        the optical node to the agent's Panda3D node. The optional registry
+        name is retained for configuration/debug output.
         """
-
-        # create a matcher for a type where the function will search for settings it can set to set it up properly
-        match kwargs:
-            case "thing1 1":
-                pass
-            case "thing 2":
-                pass
-            case _:
-                pass
-
+        sensor.attach_to_agent(self)
+        if name is not None:
+            sensor.registry_name = str(name)
         self.sensor_list.append(sensor)
+        return sensor
+
+    def get_sensor(self, name):
+        """Return an attached sensor by registry or configured name."""
+        for sensor in self.sensor_list:
+            if getattr(sensor, "registry_name", None) == name:
+                return sensor
+            if sensor.name == name:
+                return sensor
+        raise KeyError(f"agent has no sensor named {name!r}")

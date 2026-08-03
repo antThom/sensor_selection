@@ -7,6 +7,7 @@ from math import pi, sin, cos
 from sim.Agent.agent import Agent
 from sim.utils.functions import extract_yaml_configurations, set_attr_from_configuration
 
+
 class AgentLoader:
     """_summary_
     Agent loader and manager for the simulation. Loads all agents and moveable parts into the simulation.
@@ -32,9 +33,7 @@ class AgentLoader:
 
             # Set configurations twice: once for the template file and second for the top level config
             set_attr_from_configuration(new_agent, agent_config_file)
-            set_attr_from_configuration(
-                new_agent, self.config["agents"][agent_config]
-            )
+            set_attr_from_configuration(new_agent, self.config["agents"][agent_config])
             new_agent.attach_thermal(
                 body_id=getattr(new_agent, "agent_id", None),
                 source=getattr(new_agent, "model", None) or new_agent.name,
@@ -55,27 +54,28 @@ class AgentLoader:
 
             # load sensors (sensor loader will deal with it)
             for sensor_config in agent_config_file["sensors"]:
+                sensor_reference = agent_config_file["sensors"][sensor_config]
                 new_sensor = self.world.sensor_loader.create_sensor(
-                    agent_config_file["sensors"][sensor_config]["type"], 
-                    agent_config_file["sensors"][sensor_config],
-                    extract_yaml_configurations(agent_config_file["sensors"][sensor_config]["config_path"]))
-
+                    sensor_reference["type"],
+                    sensor_reference,
+                    extract_yaml_configurations(sensor_reference["config_path"]),
+                )
 
                 sim_man.generate_simulation_node(new_sensor, new_sensor.model)
                 sim_man.parent_object_models(new_agent, new_sensor)
                 sim_man.configure_sim_model(new_sensor)
 
+                # The camera setup needs the owning agent so it can parent the
+                # optical node to the agent and follow the agent's pose.
+                new_agent.add_sensor(new_sensor, sensor_config)
                 self.world.sensor_loader.setup_sensor(new_sensor)
                 sim_man.render_object(new_sensor)
-                new_agent.add_sensor(new_sensor, sensor_config)
             # for model in agent_config_file["models"]:
             #     new_agent.add_model(model)
 
             # attach sensor 3d models to the agent
             # Agent is now fully built & set up
             self.world.agent_list.append(new_agent)
-
-
 
     def generate_agent_models(self):
         """For panda3d"""

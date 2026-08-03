@@ -15,9 +15,9 @@ settings:
 
   
 sensors:
-  CameraSensor:
-    type: "eo_camera"
-    config_path: "config\\sensors\\basic_eo_camera.yaml"
+  Boson640:
+    type: "ir_camera"
+    config_path: "config\\sensors\\flir_boson_640.yaml"
 sound:
 animation:
 
