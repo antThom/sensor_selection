@@ -10,23 +10,16 @@ class Agent(ThermalBody, RenderableObject):
 
         """
         Most of these variables contained here are class defaults
-        All of these will be configured by the `AgentLoader` class later and through its
+        All of these will be configured by the `AgentLoader` classlater and through its
         intermediates and helpers
         """
 
         self.sensor_list = list()
         self.model_list = list()
 
-        # Math
-        self.position = np.zeros((3, 1))
-        self.velocity = np.zeros((3, 1))
-        self.orientation = np.zeros((3, 1))
-        self.angular_rates = np.zeros((3, 1))
-        self.mass = 1
-        self.inertia = np.eye(3)
-        self.tf = {}
-        self.max_vel = 1
-
+        # Math 
+        # TODO: Need to intergrate pybullet for phyics and math
+        
     def get_id(self):
         return getattr(self, "agent_id", None)
 

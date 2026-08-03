@@ -59,7 +59,13 @@ class SensorLoader:
             camera_parent = self.world.render
 
         sensor.camera_nodepath = camera_parent.attachNewNode(sensor.camera_node)
-        mount_position = list(getattr(sensor, "mount_position", [0.0, 0.0, 0.0]))
+        mount_position = list(
+            getattr(
+                sensor,
+                "mount_position",
+                getattr(sensor, "camera_offset", [0.0, 0.0, 0.0]),
+            )
+        )
         if (
             getattr(sensor, "mount_mode", "absolute") == "model_bounds"
             and sensor.agent is not None
@@ -71,7 +77,12 @@ class SensorLoader:
                 for axis in range(3)
             ]
         sensor.camera_nodepath.setPos(*mount_position)
-        sensor.camera_nodepath.setHpr(*getattr(sensor, "mount_hpr", [0.0, 0.0, 0.0]))
+        mount_hpr = getattr(
+            sensor,
+            "mount_hpr",
+            getattr(sensor, "camera_angle", [0.0, 0.0, 0.0]),
+        )
+        sensor.camera_nodepath.setHpr(*mount_hpr)
 
         sensor.display_region = self.world.win.makeDisplayRegion()
         sensor.display_region.setCamera(sensor.camera_nodepath)
