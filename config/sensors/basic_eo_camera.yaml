@@ -23,7 +23,6 @@ settings:
   k4:
   near:
   far:
-  forward_angle:
 
 
 model_configs:
