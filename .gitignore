@@ -227,3 +227,9 @@ doxygen/
 .*/
 baltimore/*.bam
 assets/textures/tree/bark/*.blend.zip
+
+# Generated city meshes
+*.bam
+
+# Source texture archives
+*.blend.zip
