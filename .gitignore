@@ -225,3 +225,5 @@ doxygen/
 # Hides any vs code folders and files
 .vscode/*
 .*/
+baltimore/*.bam
+assets/textures/tree/bark/*.blend.zip
