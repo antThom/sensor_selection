@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import numpy as np
 import yaml
 from panda3d.core import Camera as PandaCamera
-from panda3d.core import NodePath, PandaNode
+from panda3d.core import NodePath, PandaNode, ShaderAttrib
 
 from sim.Agent.agent import Agent
 from sim.Environment.Thermal.thermal_manager import ThermalManager
@@ -36,6 +36,8 @@ class IRCameraTests(unittest.TestCase):
         self.assertGreater(camera.frame_rate_hz, 0)
         self.assertGreater(camera.pixel_pitch_um, 0)
         self.assertGreaterEqual(camera.netd_K, 0)
+        self.assertEqual(camera.display_temperature_range_K, [260.0, 330.0])
+        self.assertGreaterEqual(camera.atmospheric_extinction_per_m, 0.0)
         self.assertTrue(camera.radiometric)
         camera.validate_parameters()
 
@@ -88,6 +90,18 @@ class IRCameraTests(unittest.TestCase):
         second = camera.temperature_to_image(temperatures)
         np.testing.assert_array_equal(first, second)
 
+    def test_automatic_gain_control_uses_scene_temperature_window(self):
+        camera = IRCamera(self.manager)
+
+        display_range = camera._automatic_display_range([285.0, 294.0, 290.0])
+
+        self.assertEqual(display_range, [274.5, 304.5])
+        camera.automatic_gain_control = False
+        self.assertEqual(
+            camera._automatic_display_range([285.0, 294.0]),
+            camera.display_temperature_range_K,
+        )
+
     def test_agent_owns_attached_ir_camera(self):
         agent = Agent(thermal_manager=self.manager)
         camera = IRCamera(self.manager)
@@ -98,32 +112,32 @@ class IRCameraTests(unittest.TestCase):
         self.assertIs(agent.get_sensor("ir_camera"), camera)
         self.assertIn(camera, agent.sensor_list)
 
-    def test_live_view_updates_palette_tag_from_current_temperature(self):
+    def test_live_view_updates_gpu_input_from_current_temperature(self):
         camera = IRCamera(self.manager)
-        camera.temperature_range_K = [270.0, 330.0]
-        camera.thermal_palette_bins = 5
-        camera.camera_node = PandaCamera("test-ir-camera")
         scene_node = NodePath(PandaNode("thermal-test-object"))
         thermal_source = SimpleNamespace(temperature=270.0)
         camera.register_thermal_node(scene_node, thermal_source, emissivity=1.0)
 
-        camera._build_thermal_render_states()
         camera.refresh_live_thermal_colors()
-        self.assertEqual(scene_node.getTag("thermal-palette-bin"), "0")
+        first = scene_node.getShaderInput("thermal_object").getVector()
+        self.assertEqual(first.x, 270.0)
+        self.assertEqual(first.y, 1.0)
 
         thermal_source.temperature = 330.0
         camera.refresh_live_thermal_colors()
-        self.assertEqual(scene_node.getTag("thermal-palette-bin"), "4")
+        second = scene_node.getShaderInput("thermal_object").getVector()
+        self.assertEqual(second.x, 330.0)
 
     def test_thermal_render_state_is_owned_by_ir_camera_only(self):
         camera = IRCamera(self.manager)
         camera.camera_node = PandaCamera("test-ir-camera")
         rgb_camera = PandaCamera("test-rgb-camera")
 
-        camera._build_thermal_render_states()
+        camera._build_thermal_render_state()
 
-        self.assertEqual(camera.camera_node.getTagStateKey(), "thermal-palette-bin")
-        self.assertEqual(rgb_camera.getTagStateKey(), "")
+        shader_slot = ShaderAttrib.getClassSlot()
+        self.assertTrue(camera.camera_node.getInitialState().hasAttrib(shader_slot))
+        self.assertFalse(rgb_camera.getInitialState().hasAttrib(shader_slot))
 
 
 if __name__ == "__main__":

@@ -12,10 +12,11 @@ pixel pitch are millimetres and micrometres respectively, and NETD is kelvin.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from panda3d.core import NodePath, PandaNode, PNMImage
+from panda3d.core import ClockObject, NodePath, PandaNode, PNMImage, Shader, Vec4
 
 from sim.Environment.Thermal.thermal_manager import (
     ThermalManager,
@@ -49,6 +50,11 @@ class IRCamera(Camera):
         self.netd_K = 0.050
         self.temperature_accuracy_K = 5.0
         self.temperature_range_K = [233.15, 423.15]
+        # The detector can measure the full range above, while its display
+        # gain uses a narrower window to reveal scene-scale thermal gradients.
+        self.display_temperature_range_K = [260.0, 330.0]
+        self.automatic_gain_control = True
+        self.agc_min_span_K = 30.0
         self.gain_mode = "high"
         self.nuc_mode = "factory"
 
@@ -73,6 +79,9 @@ class IRCamera(Camera):
         self.atmospheric_transmission = 1.0
         self.atmospheric_temperature_K = 293.15
         self.reflected_temperature_K = 293.15
+        self.atmospheric_extinction_per_m = 0.00015
+        self.surface_temperature_variation_K = 1.0
+        self.solar_surface_gain_K = 6.0
 
         # Output settings.
         self.input = "scene_temperature"
@@ -86,11 +95,10 @@ class IRCamera(Camera):
         self.thermal_mgr = thermal_manager
         self.type = SensorType.IRCAMERA
 
-        # Live scene rendering uses Panda3D's per-camera tag states.  Scene
-        # geometry remains normally textured for RGB cameras; only this camera
-        # substitutes temperature-derived palette colors during its traversal.
-        self.thermal_palette_bins = 64
         self._thermal_nodes = []
+        self._thermal_shader = None
+        self._thermal_world = None
+        self._active_display_range_K = list(self.display_temperature_range_K)
 
     @property
     def WIDTH(self):
@@ -149,6 +157,16 @@ class IRCamera(Camera):
             raise ValueError("temperature_range_K must contain [minimum, maximum]")
         if float(self.temperature_range_K[0]) >= float(self.temperature_range_K[1]):
             raise ValueError("temperature range minimum must be below maximum")
+        if len(self.display_temperature_range_K) != 2:
+            raise ValueError("display_temperature_range_K must contain [minimum, maximum]")
+        if float(self.display_temperature_range_K[0]) >= float(
+            self.display_temperature_range_K[1]
+        ):
+            raise ValueError("display temperature minimum must be below maximum")
+        if float(self.atmospheric_extinction_per_m) < 0.0:
+            raise ValueError("atmospheric_extinction_per_m cannot be negative")
+        if float(self.agc_min_span_K) <= 0.0:
+            raise ValueError("agc_min_span_K must be positive")
         if not 0.0 < float(self.emissivity) <= 1.0:
             raise ValueError("emissivity must be in the interval (0, 1]")
         if not 0.0 <= float(self.atmospheric_transmission) <= 1.0:
@@ -274,15 +292,15 @@ class IRCamera(Camera):
     def setup_live_thermal_view(self, world):
         """Configure this mounted camera to display scene temperature.
 
-        Each registered scene root receives a discrete palette-bin tag.  The
-        tag is reevaluated every frame, so an agent's rendered color follows
-        its live ``ThermalObject.temperature`` value without altering the
-        render state seen by any other camera.
+        A single GPU shader computes geometry-aware apparent temperature for
+        every fragment. Per-object bulk temperatures are refreshed from the
+        thermal simulation without altering other cameras' render states.
         """
         if self.camera_node is None:
             raise RuntimeError("IR camera must be mounted before thermal setup")
 
-        self._build_thermal_render_states()
+        self._thermal_world = world
+        self._build_thermal_render_state()
         self._register_scene_thermal_nodes(world)
         self.refresh_live_thermal_colors()
 
@@ -290,7 +308,18 @@ class IRCamera(Camera):
         world.taskMgr.add(self._update_live_thermal_view, task_name)
         return self
 
-    def register_thermal_node(self, node_path, temperature_source, emissivity=None):
+    def register_thermal_node(
+        self,
+        node_path,
+        temperature_source,
+        emissivity=None,
+        *,
+        variation_K=None,
+        variation_scale=0.1,
+        solar_gain_K=None,
+        texture_variation_K=1.0,
+        atmosphere=True,
+    ):
         """Associate a Panda3D scene root with a live kelvin value.
 
         ``temperature_source`` may be a number, a callable returning a number,
@@ -303,49 +332,88 @@ class IRCamera(Camera):
                 "node": node_path,
                 "source": temperature_source,
                 "emissivity": self.emissivity if emissivity is None else emissivity,
+                "variation_K": (
+                    self.surface_temperature_variation_K
+                    if variation_K is None
+                    else float(variation_K)
+                ),
+                "variation_scale": float(variation_scale),
+                "solar_gain_K": (
+                    self.solar_surface_gain_K
+                    if solar_gain_K is None
+                    else float(solar_gain_K)
+                ),
+                "texture_variation_K": float(texture_variation_K),
+                "atmosphere": bool(atmosphere),
+                "last_temperature": None,
             }
         )
 
     def refresh_live_thermal_colors(self):
-        """Update all scene tags from their current simulated temperatures."""
-        minimum, maximum = (float(value) for value in self.temperature_range_K)
-        bin_count = max(2, int(self.thermal_palette_bins))
+        """Refresh cheap per-object and per-frame GPU shader inputs."""
+        foreground_temperatures = []
         for registration in self._thermal_nodes:
             node = registration["node"]
             if node.isEmpty():
                 continue
             temperature = self._resolve_temperature(registration["source"])
-            apparent = float(
-                self.apparent_temperature(
-                    temperature,
-                    emissivity=float(registration["emissivity"]),
+            if registration["atmosphere"]:
+                foreground_temperatures.append(temperature)
+            previous = registration["last_temperature"]
+            if previous is None or abs(temperature - previous) >= max(
+                float(self.netd_K), 0.001
+            ):
+                node.setShaderInput(
+                    "thermal_object",
+                    Vec4(
+                        temperature,
+                        float(registration["emissivity"]),
+                        registration["variation_K"],
+                        registration["variation_scale"],
+                    ),
                 )
-            )
-            normalized = np.clip((apparent - minimum) / (maximum - minimum), 0, 1)
-            palette_bin = int(round(float(normalized) * (bin_count - 1)))
-            node.setTag("thermal-palette-bin", str(palette_bin))
+                node.setShaderInput(
+                    "thermal_effects",
+                    Vec4(
+                        registration["solar_gain_K"],
+                        1.0 if registration["atmosphere"] else 0.0,
+                        registration["texture_variation_K"],
+                        0.0,
+                    ),
+                )
+                registration["last_temperature"] = temperature
 
-    def _build_thermal_render_states(self):
-        """Create flat-color states used only while this camera renders."""
-        bin_count = max(2, int(self.thermal_palette_bins))
-        self.camera_node.setTagStateKey("thermal-palette-bin")
-
-        # Untagged geometry is shown at ambient temperature, preventing RGB
-        # textures from leaking into the thermal view.
-        ambient_color = self._palette_color_for_temperature(
-            self.thermal_manager.ambient if self.thermal_manager else 293.0
+        self._active_display_range_K = self._automatic_display_range(
+            foreground_temperatures
         )
-        self.camera_node.setInitialState(
-            self._make_flat_color_state(ambient_color, priority=50)
-        )
+        self._update_global_shader_inputs()
 
-        for palette_bin in range(bin_count):
-            normalized = palette_bin / float(bin_count - 1)
-            rgb = self._apply_palette(np.asarray(normalized), self.palette)
-            self.camera_node.setTagState(
-                str(palette_bin),
-                self._make_flat_color_state(rgb, priority=100),
-            )
+    def _automatic_display_range(self, temperatures):
+        """Return an AGC window that preserves useful scene contrast."""
+        if not self.automatic_gain_control or not temperatures:
+            return list(self.display_temperature_range_K)
+        low = min(temperatures) - 10.0
+        high = max(temperatures) + 10.0
+        span = max(high - low, float(self.agc_min_span_K))
+        center = (low + high) * 0.5
+        return [center - span * 0.5, center + span * 0.5]
+
+    def _build_thermal_render_state(self):
+        """Load one fragment shader for the IR camera's render traversal."""
+        shader_dir = Path(__file__).resolve().parent / "shaders"
+        self._thermal_shader = Shader.make(
+            Shader.SL_GLSL,
+            (shader_dir / "thermal.vert.glsl").read_text(encoding="utf-8"),
+            (shader_dir / "thermal.frag.glsl").read_text(encoding="utf-8"),
+        )
+        holder = NodePath(PandaNode("thermal-camera-render-state"))
+        holder.setShader(self._thermal_shader, 100)
+        holder.setLightOff(100)
+        holder.setMaterialOff(100)
+        ambient = self.thermal_manager.ambient if self.thermal_manager else 293.0
+        holder.setShaderInput("thermal_object", Vec4(ambient, 0.95, 0.5, 0.1))
+        holder.setShaderInput("thermal_effects", Vec4(2.0, 1.0, 0.0, 0.0))
+        self.camera_node.setInitialState(holder.getState())
 
     def _register_scene_thermal_nodes(self, world):
         self._thermal_nodes.clear()
@@ -355,13 +423,27 @@ class IRCamera(Camera):
         if terrain is not None:
             terrain_material = materials["terrain"]
             self.register_thermal_node(
-                terrain, terrain_material["T"], terrain_material["emiss"]
+                terrain,
+                terrain_material["T"],
+                terrain_material["emiss"],
+                variation_K=1.8,
+                variation_scale=0.018,
+                solar_gain_K=8.0,
+                texture_variation_K=3.0,
             )
 
         trees = getattr(getattr(world, "object_loader", None), "static_object", {})
         tree_material = materials["tree"]
         for tree in trees.get("trees", []):
-            self.register_thermal_node(tree, tree_material["T"], tree_material["emiss"])
+            self.register_thermal_node(
+                tree,
+                tree_material["T"],
+                tree_material["emiss"],
+                variation_K=0.8,
+                variation_scale=0.25,
+                solar_gain_K=4.0,
+                texture_variation_K=1.5,
+            )
 
         if self.agent is not None and self.agent.object_node_path is not None:
             thermal_body = getattr(self.agent, "thermal_object", None)
@@ -371,11 +453,100 @@ class IRCamera(Camera):
                 self.agent.object_node_path,
                 source,
                 emissivity,
+                variation_K=0.6,
+                variation_scale=1.5,
+                solar_gain_K=3.0,
+                texture_variation_K=0.75,
             )
 
-        sky = getattr(getattr(getattr(world, "sky", None), "sky", None), "sky", None)
+        sky_controller = getattr(getattr(world, "sky", None), "sky", None)
+        sky = getattr(sky_controller, "sky", None)
         if sky is not None and self.thermal_manager is not None:
-            self.register_thermal_node(sky, self.thermal_manager.T_sky, 1.0)
+            self.register_thermal_node(
+                sky,
+                self.thermal_manager.T_sky,
+                1.0,
+                variation_K=0.15,
+                variation_scale=0.0002,
+                solar_gain_K=0.0,
+                texture_variation_K=0.0,
+                atmosphere=False,
+            )
+        sun = getattr(sky_controller, "sun", None)
+        if sun is not None:
+            self.register_thermal_node(
+                sun,
+                1000.0,
+                1.0,
+                variation_K=0.0,
+                variation_scale=0.0,
+                solar_gain_K=0.0,
+                texture_variation_K=0.0,
+                atmosphere=False,
+            )
+
+    def _update_global_shader_inputs(self):
+        world = self._thermal_world
+        if world is None:
+            return
+        manager = self.thermal_manager
+        ambient = manager.ambient if manager else 293.0
+        sky_temperature = manager.T_sky if manager else 260.0
+        minimum, maximum = (float(value) for value in self._active_display_range_K)
+        world.render.setShaderInput(
+            "thermal_environment",
+            Vec4(
+                ambient,
+                sky_temperature,
+                float(self.reflected_temperature_K),
+                float(self.atmospheric_temperature_K),
+            ),
+        )
+        world.render.setShaderInput(
+            "thermal_camera",
+            Vec4(
+                minimum,
+                maximum,
+                float(self.netd_K),
+                float(self.atmospheric_extinction_per_m),
+            ),
+        )
+        sun_direction = (0.0, 0.0, 1.0)
+        sun_strength = 1.0
+        sky = getattr(getattr(world, "sky", None), "sky", None)
+        sun = getattr(sky, "sun", None)
+        if sun is not None:
+            direction = sun.getPos(world.render)
+            if direction.lengthSquared() > 0.0:
+                direction.normalize()
+                sun_direction = (direction.x, direction.y, direction.z)
+                sun_strength = max(0.0, direction.z)
+        world.render.setShaderInput(
+            "thermal_sun",
+            Vec4(*sun_direction, sun_strength),
+        )
+        camera_position = self.camera_nodepath.getPos(world.render)
+        world.render.setShaderInput(
+            "thermal_camera_position",
+            Vec4(camera_position.x, camera_position.y, camera_position.z, 1.0),
+        )
+        world.render.setShaderInput(
+            "thermal_frame", ClockObject.getGlobalClock().getFrameTime()
+        )
+        world.render.setShaderInput("thermal_palette", self._palette_mode())
+        world.render.setShaderInput(
+            "thermal_base_transmission", float(self.atmospheric_transmission)
+        )
+
+    def _palette_mode(self):
+        palette = str(self.palette).lower().replace("-", "_")
+        if palette in {"white_hot", "grayscale", "grey"}:
+            return 0.0
+        if palette == "black_hot":
+            return 1.0
+        if palette in {"ironbow", "iron", "false_color"}:
+            return 2.0
+        raise ValueError(f"unsupported IR palette: {self.palette!r}")
 
     @staticmethod
     def _resolve_temperature(source):
@@ -384,23 +555,6 @@ class IRCamera(Camera):
         if hasattr(source, "temperature"):
             source = source.temperature
         return float(source)
-
-    def _palette_color_for_temperature(self, temperature_K):
-        minimum, maximum = (float(value) for value in self.temperature_range_K)
-        apparent = float(self.apparent_temperature(temperature_K))
-        normalized = np.clip((apparent - minimum) / (maximum - minimum), 0, 1)
-        return self._apply_palette(np.asarray(normalized), self.palette)
-
-    @staticmethod
-    def _make_flat_color_state(rgb, priority):
-        holder = NodePath(PandaNode("thermal-flat-color-state"))
-        color = np.asarray(rgb, dtype=np.float64) / 255.0
-        holder.setColor(float(color[0]), float(color[1]), float(color[2]), 1.0, priority)
-        holder.setTextureOff(priority)
-        holder.setLightOff(priority)
-        holder.setMaterialOff(priority)
-        holder.setShaderOff(priority)
-        return holder.getState()
 
     def _update_live_thermal_view(self, task):
         self.refresh_live_thermal_colors()

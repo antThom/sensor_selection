@@ -18,6 +18,9 @@ detector:
   netd_K: 0.050
   temperature_accuracy_K: 5.0
   temperature_range_K: [233.15, 423.15]
+  display_temperature_range_K: [260.0, 330.0]
+  automatic_gain_control: true
+  agc_min_span_K: 30.0
   gain_mode: "high"
   nuc_mode: "factory"
 
@@ -36,6 +39,9 @@ radiometry:
   atmospheric_transmission: 1.0
   atmospheric_temperature_K: 293.15
   reflected_temperature_K: 293.15
+  atmospheric_extinction_per_m: 0.00015
+  surface_temperature_variation_K: 1.0
+  solar_surface_gain_K: 6.0
 
 output:
   input: "scene_temperature"
