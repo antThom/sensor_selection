@@ -9,6 +9,7 @@ from sim.loaders.environment_loader import EnvironmentLoader
 from sim.loaders.object_loader import ObjectLoader
 from sim.loaders.sensor_loader import SensorLoader
 from sim.Agent.camera_controls import CameraControls
+from sim.Agent.drone_controls import DroneControls
 from sim.Environment.Thermal.thermal_manager import ThermalManager
 
 from sim.utils.functions import extract_yaml_configurations
@@ -73,6 +74,7 @@ class WORLD(ShowBase):
 
         # Cameras
         self.camera_controls = CameraControls(self)
+        self.drone_controls = DroneControls(self)
         
         # keybind corner
         self.accept("c", self.camera_controls.camera_list_forward)
