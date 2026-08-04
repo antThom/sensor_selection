@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import threading
 import time
 import json
-from sim.environment.thermal.thermal_manager import ThermalManager
+from sim.Environment.Thermal.thermal_manager import ThermalManager
 # from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal
 from dataclasses import dataclass
 from typing import Any, Optional, Callable
@@ -138,7 +138,7 @@ class Sensor(ABC, RenderableObject):
         
         
         self.agent = None
-        self.agent: SensorType = SensorType.EMPTY
+        self.type: SensorType = SensorType.EMPTY
 
     # @abstractmethod
     # def get_output(self):

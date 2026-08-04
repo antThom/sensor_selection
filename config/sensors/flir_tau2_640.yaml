@@ -1,0 +1,60 @@
+# Teledyne FLIR Tau 2 640 industrial-grade configuration.
+# The retired Tau 2 product family was offered lensless and with multiple
+# lenses; a 45 x 36 degree simulation lens is selected for a usable scene view.
+name: "FLIR Tau 2 640"
+type: "ir_camera"
+manufacturer: "Teledyne FLIR"
+model_name: "Tau 2 640 Industrial"
+model_number: "46640001X"
+detector_type: "Uncooled VOx microbolometer"
+radiometric: true
+
+detector:
+  width: 640
+  height: 512
+  frame_rate_hz: 60.0
+  pixel_pitch_um: 17.0
+  ifov_mrad: 0.895
+  spectral_band_um: [7.5, 13.5]
+  netd_K: 0.030
+  temperature_accuracy_K: 5.0
+  temperature_range_K: [233.15, 423.15]
+  gain_mode: "high"
+  nuc_mode: "flat_field_correction"
+
+optics:
+  camera_model: "pinhole"
+  horizontal_fov_deg: 45.0
+  vertical_fov_deg: 36.0
+  focal_length_mm: 19.0
+  f_number: 1.1
+  digital_zoom: 1.0
+  near: 0.1
+  far: 10000.0
+
+radiometry:
+  emissivity: 0.95
+  atmospheric_transmission: 1.0
+  atmospheric_temperature_K: 293.15
+  reflected_temperature_K: 293.15
+
+output:
+  input: "scene_temperature"
+  output: "thermal_image"
+  encode: "ir"
+  palette: "white_hot"
+  noise_seed: 2640
+
+mount:
+  mount_mode: "model_bounds"
+  mount_position: [0.5, 1.02, 0.5]
+  mount_hpr: [0.0, -20.0, 0.0]
+  mass_g: 72.0
+  power_consumption_W: 1.2
+
+model_configs:
+  model: ""
+  position: [0.0, 0.0, 0.0]
+  orientation: [0.0, 0.0, 0.0]
+  color: [1.0, 1.0, 1.0]
+  scale: 1.0

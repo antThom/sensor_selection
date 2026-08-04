@@ -1,7 +1,7 @@
 """ The file for the EO camera, otherwise known as an RBG camera. """
 
-from sim.sensors.cameras.camera import Camera
-from sim.sensors.sensor import SensorType
+from sim.Sensors.Cameras.camera import Camera
+from sim.Sensors.sensor import SensorType
 
 class EOCamera(Camera):
     """_summary_
