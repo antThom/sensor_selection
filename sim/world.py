@@ -79,6 +79,6 @@ class WORLD(ShowBase):
         # keybind corner
         self.accept("c", self.camera_controls.camera_list_forward)
         self.accept("x", self.camera_controls.camera_list_back)
-        self.accept("z", self.camera_controls.save_current_camera_image, [self.camera_controls.camera_index])
+        self.accept("z", self.camera_controls.save_current_camera_image)
         
         

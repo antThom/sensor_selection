@@ -139,6 +139,27 @@ class IRCameraTests(unittest.TestCase):
         self.assertTrue(camera.camera_node.getInitialState().hasAttrib(shader_slot))
         self.assertFalse(rgb_camera.getInitialState().hasAttrib(shader_slot))
 
+    def test_scene_refresh_registers_every_agent_as_a_thermal_target(self):
+        camera = IRCamera(self.manager)
+        first = Agent(self.manager)
+        second = Agent(self.manager)
+        for index, agent in enumerate((first, second), start=1):
+            agent.object_node_path = NodePath(PandaNode(f"agent-{index}"))
+            agent.attach_thermal(body_id=index, source="robot")
+        camera.agent = first
+        world = SimpleNamespace(
+            agent_list=[first, second],
+            terrain=None,
+            object_loader=SimpleNamespace(static_object={}),
+            sky=None,
+        )
+
+        camera._register_scene_thermal_nodes(world)
+
+        registered_nodes = {item["node"] for item in camera._thermal_nodes}
+        self.assertIn(first.object_node_path, registered_nodes)
+        self.assertIn(second.object_node_path, registered_nodes)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -77,6 +77,14 @@ class AgentLoader:
             # Agent is now fully built & set up
             self.world.agent_list.append(new_agent)
 
+        # Cameras may be constructed while the first agent is still loading.
+        # Refresh after the complete agent list exists so every IR camera also
+        # receives subsequently loaded drones as live thermal renderables.
+        for camera in self.world.camera_list[1:]:
+            refresh = getattr(camera, "refresh_scene_thermal_nodes", None)
+            if refresh is not None:
+                refresh(self.world)
+
     def generate_agent_models(self):
         """For panda3d"""
         pass

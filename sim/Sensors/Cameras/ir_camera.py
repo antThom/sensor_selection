@@ -99,6 +99,7 @@ class IRCamera(Camera):
         self._thermal_shader = None
         self._thermal_world = None
         self._active_display_range_K = list(self.display_temperature_range_K)
+        self.thermal_legend = None
 
     @property
     def WIDTH(self):
@@ -302,11 +303,27 @@ class IRCamera(Camera):
         self._thermal_world = world
         self._build_thermal_render_state()
         self._register_scene_thermal_nodes(world)
+        from sim.Sensors.Cameras.thermal_legend import ThermalLegend
+
+        self.thermal_legend = ThermalLegend(world, self)
         self.refresh_live_thermal_colors()
 
         task_name = f"update-{self.model_number}-thermal-view-{id(self)}"
         world.taskMgr.add(self._update_live_thermal_view, task_name)
         return self
+
+    def refresh_scene_thermal_nodes(self, world=None):
+        """Rediscover thermal geometry after all scene agents are loaded."""
+        world = self._thermal_world if world is None else world
+        if world is None:
+            return
+        self._register_scene_thermal_nodes(world)
+        self.refresh_live_thermal_colors()
+
+    def set_overlay_visible(self, visible):
+        """Show or hide the live temperature guide for camera switching."""
+        if self.thermal_legend is not None:
+            self.thermal_legend.set_visible(bool(visible))
 
     def register_thermal_node(
         self,
@@ -445,12 +462,17 @@ class IRCamera(Camera):
                 texture_variation_K=1.5,
             )
 
-        if self.agent is not None and self.agent.object_node_path is not None:
-            thermal_body = getattr(self.agent, "thermal_object", None)
-            source = thermal_body if thermal_body is not None else self.agent
+        agents = list(getattr(world, "agent_list", []))
+        if self.agent is not None and self.agent not in agents:
+            agents.append(self.agent)
+        for agent in agents:
+            if agent.object_node_path is None:
+                continue
+            thermal_body = getattr(agent, "thermal_object", None)
+            source = thermal_body if thermal_body is not None else agent
             emissivity = getattr(source, "emiss", materials["robot"]["emiss"])
             self.register_thermal_node(
-                self.agent.object_node_path,
+                agent.object_node_path,
                 source,
                 emissivity,
                 variation_K=0.6,
@@ -537,6 +559,8 @@ class IRCamera(Camera):
         world.render.setShaderInput(
             "thermal_base_transmission", float(self.atmospheric_transmission)
         )
+        if self.thermal_legend is not None:
+            self.thermal_legend.update(self._active_display_range_K, self.palette)
 
     def _palette_mode(self):
         palette = str(self.palette).lower().replace("-", "_")
