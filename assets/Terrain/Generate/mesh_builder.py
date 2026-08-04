@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional, Any, Iterable
 
@@ -192,6 +192,7 @@ class CityMeshBuilder:
         self.terrain_sampler = terrain_sampler
         self.output_dir = Path(output_dir)
         self.assets: list[MeshAsset] = []
+        self.buildings: list[BuildingAsset] = []
         self.tile_size = 500.0
         self.tiles = {}
         self.root = NodePath("city_root")
@@ -350,14 +351,26 @@ class CityMeshBuilder:
     def add_buildings(self, buildings: gpd.GeoDataFrame):
         if buildings is None or buildings.empty:
             return
-        for asset_idx, (gdf_idx, row) in enumerate(buildings.iterrows()):
-            poly = _geom_to_xy_polygon(row.geometry)
+
+        # Optional small cache if many buildings hit the same point
+        ground_cache = {}
+
+        asset_start = len(self.assets)
+
+        for asset_idx, row in enumerate(buildings.itertuples(index=False)):
+            geom = getattr(row, "geometry", None)
+            poly = _geom_to_xy_polygon(geom)
             if poly is None:
                 continue
 
-            height = _parse_height_m(row.get("height", None))
+            # Use precomputed metadata if present
+            height = getattr(row, "height_m", None)
             if height is None or np.isnan(height):
-                levels = row.get("building:levels", None)
+                height = _parse_height_m(getattr(row, "height", None))
+            if height is None or np.isnan(height):
+                levels = getattr(row, "building_levels", None)
+                if levels is None:
+                    levels = getattr(row, "_4", None)  # only if your dataframe layout is odd; otherwise remove
                 try:
                     if levels is not None and not pd.isna(levels):
                         height = float(levels) * 3.0
@@ -366,21 +379,54 @@ class CityMeshBuilder:
             if height is None or np.isnan(height):
                 height = DEFAULT_BUILDING_HEIGHT
 
-            base_z = self.sample_ground_z(poly)
             x, y = _representative_xy(poly)
             tile_key = self._tile_key(x, y)
-            node = self._make_geomnode_from_extrusion(poly, height, f"building_{len(self.assets)}")
+
+            # Cache ground sampling by tile center-ish location
+            cache_key = (round(x, 2), round(y, 2))
+            if cache_key in ground_cache:
+                base_z = ground_cache[cache_key]
+            else:
+                base_z = self.sample_ground_z(poly)
+                ground_cache[cache_key] = base_z
+
+            node = self._make_geomnode_from_extrusion(
+                poly, height, f"building_{asset_start + asset_idx}"
+            )
             node.setZ(base_z)
 
-            self._add_asset(
-                name=f"building_{len(self.assets)}",
+            landuse_tag = getattr(row, "landuse_tag", None)
+
+            building = BuildingAsset(
+                name=f"building_{asset_start + asset_idx}",
                 nodepath=node,
-                kind="building",
                 source_index=asset_idx,
-                metadata={"height_m": float(height), "base_z": float(base_z)},
-                tile_key=tile_key,
+                height_m=float(height),
+                base_z=float(base_z),
+                landuse_tag=landuse_tag,
+                building_tag=getattr(row, "building", None),
+                metadata={
+                    "height_m": float(height),
+                    "base_z": float(base_z),
+                    "landuse_tag": landuse_tag,
+                    "building": getattr(row, "building", None),
+                },
             )
 
+            parent = self._get_tile_node(tile_key)
+            node.reparentTo(parent)
+
+            self.buildings.append(building)
+            self.assets.append(
+                MeshAsset(
+                    name=building.name,
+                    nodepath=building.nodepath,
+                    kind="building",
+                    source_index=asset_idx,
+                    metadata=building.metadata,
+                )
+            )
+        
     def add_roads(self, roads: gpd.GeoDataFrame):
         if roads is None or roads.empty:
             return
@@ -632,23 +678,59 @@ class CityMeshBuilder:
         return out_path
 
     def _load_texture(self, texture_path: str) -> Texture:
+        path_cwd = Path.cwd()
+        texture_path = Path(path_cwd,texture_path)
         tex = TexturePool.loadTexture(texture_path)
         if tex is None:
             raise FileNotFoundError(f"Could not load texture: {texture_path}")
         return tex
 
+    def _building_texture_for_height(
+        self,
+        height_m: float,
+        landuse: str | None,
+        texture_rules: dict,
+    ):
+        """
+        Select a building texture.
 
-    def _building_texture_for_height(self, height_m: float, texture_rules):
+        Parameters
+        ----------
+        height_m : float
+            Building height in meters.
+
+        landuse : str
+            OSM landuse tag associated with the building
+            (e.g. residential, commercial, retail, industrial).
+
+        texture_rules : dict
+            Example:
+
+            {
+                "residential": "textures/buildings/house.jpg",
+                "commercial":  "textures/buildings/commercial.jpg",
+                "retail":      "textures/buildings/retail.jpg",
+                "industrial":  "textures/buildings/industrial.jpg",
+                "default": [
+                    (10, "textures/buildings/lowrise.jpg"),
+                    (25, "textures/buildings/midrise.jpg"),
+                    (1e9, "textures/buildings/highrise.jpg"),
+                ]
+            }
         """
-        texture_rules: list of (height_max, texture_path), sorted low->high
-        Example:
-            [(10, "low.png"), (25, "mid.png"), (1e9, "high.png")]
-        """
-        for height_max, tex_path in texture_rules:
+
+        # First try the landuse texture
+        if landuse:
+            landuse = landuse.lower()
+            if landuse in texture_rules:
+                return texture_rules[landuse]
+
+        # Fall back to height-based texture selection
+        for height_max, tex_path in texture_rules["default"]:
             if height_m <= height_max:
                 return tex_path
-        return texture_rules[-1][1]
 
+        return texture_rules["default"][-1][1]
 
     def apply_textures(
         self,
@@ -657,34 +739,35 @@ class CityMeshBuilder:
         park_texture_path: str,
         water_texture_path: str,
     ):
-        """
-        building_rules: list of (height_max, texture_path)
-        """
-        road_tex = self._load_texture(road_texture_path)
-        park_tex = self._load_texture(park_texture_path)
-        water_tex = self._load_texture(water_texture_path)
+        road_tex = self._load_texture(str(road_texture_path))
+        park_tex = self._load_texture(str(park_texture_path))
+        water_tex = self._load_texture(str(water_texture_path))
         tex_stage = TextureStage("tex")
 
+        texture_library = BuildingTextureLibrary(
+            landuse_textures={k.lower(): Path(v) for k, v in building_rules},
+            default_height_rules=[
+                (10.0, Path("assets/textures/building_materials/bricks/Bricks101_1K-JPG/Bricks101_1K-JPG_Color.jpg")),
+                (25.0, Path("assets/textures/building_materials/bricks/Bricks097_1K-JPG/Bricks097_1K-JPG_Color.jpg")),
+                (1e9, Path("assets/textures/building_materials/office/window-pattern-textures-building.jpg")),
+            ],
+        )
+
+        for building in self.buildings:
+            tex_path = texture_library.select(building)
+            tex = self._load_texture(str(tex_path))
+            building.nodepath.setTexture(tex_stage, tex, 1)
+
         for asset in self.assets:
-            if asset.kind == "building":
-                h = float(asset.metadata.get("height_m", 8.0))
-                tex_path = self._building_texture_for_height(h, building_rules)
-                tex = self._load_texture(tex_path)
-                asset.nodepath.setTexture(tex_stage, tex, 1)
-
-            elif asset.kind == "road":
+            if asset.kind == "road":
                 asset.nodepath.setTexture(tex_stage, road_tex, 1)
-
             elif asset.kind == "park":
                 asset.nodepath.setTexture(tex_stage, park_tex, 1)
-
             elif asset.kind == "water":
                 asset.nodepath.setTexture(tex_stage, water_tex, 1)
-
             elif asset.kind == "bridge":
-                # optional: reuse road texture or give a bridge texture
                 asset.nodepath.setTexture(tex_stage, road_tex, 1)
-    
+            
     def export_manifest_csv(self) -> Path:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         records = []
@@ -696,3 +779,76 @@ class CityMeshBuilder:
         out_path = self.output_dir / "city_manifest.csv"
         df.to_csv(out_path, index=False)
         return out_path
+    
+@dataclass
+class BuildingAsset:
+    name: str
+    nodepath: NodePath
+    source_index: int
+    height_m: float
+    base_z: float
+    landuse_tag: Optional[str] = None
+    building_tag: Optional[str] = None
+    building_levels: Optional[float] = None
+    metadata: dict = field(default_factory=dict)
+
+    @classmethod
+    def from_row(cls, name: str, nodepath: NodePath, source_index: int, row, height_m: float, base_z: float):
+        def _first(v):
+            if v is None:
+                return None
+            if isinstance(v, (list, tuple, set)):
+                return next(iter(v), None)
+            return v
+
+        landuse_tag = _first(row.get("landuse_tag", None))
+        building_tag = _first(row.get("building", None))
+        levels = row.get("building:levels", None)
+
+        try:
+            if levels is not None and pd.isna(levels):
+                levels = None
+        except Exception:
+            pass
+
+        meta = dict(row.drop(labels=["geometry"], errors="ignore"))
+        meta["height_m"] = float(height_m)
+        meta["base_z"] = float(base_z)
+        meta["landuse_tag"] = landuse_tag
+        meta["building_tag"] = building_tag
+        meta["building_levels"] = levels
+
+        return cls(
+            name=name,
+            nodepath=nodepath,
+            source_index=source_index,
+            height_m=float(height_m),
+            base_z=float(base_z),
+            landuse_tag=landuse_tag,
+            building_tag=building_tag,
+            building_levels=levels,
+            metadata=meta,
+        )
+
+    @property
+    def texture_key(self) -> str:
+        if self.landuse_tag:
+            return str(self.landuse_tag).strip().lower()
+        return "default"
+    
+@dataclass
+class BuildingTextureLibrary:
+    landuse_textures: dict[str, Path]
+    default_height_rules: list[tuple[float, Path]]
+
+    def select(self, building: BuildingAsset) -> Path:
+        landuse = (building.landuse_tag or "").strip().lower()
+        if landuse in self.landuse_textures:
+            return self.landuse_textures[landuse]
+
+        for height_max, tex_path in self.default_height_rules:
+            if building.height_m <= height_max:
+                return tex_path
+
+        return self.default_height_rules[-1][1]
+    
