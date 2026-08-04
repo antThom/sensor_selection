@@ -15,9 +15,12 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
-from panda3d.core import PNMImage
+from panda3d.core import NodePath, PandaNode, PNMImage
 
-from sim.Environment.Thermal.thermal_manager import ThermalManager
+from sim.Environment.Thermal.thermal_manager import (
+    ThermalManager,
+    ThermalMaterialLibrary,
+)
 from sim.Sensors.Cameras.camera import Camera
 from sim.Sensors.sensor import SensorType
 
@@ -82,6 +85,12 @@ class IRCamera(Camera):
         # Keep the older attribute name available to callers in this branch.
         self.thermal_mgr = thermal_manager
         self.type = SensorType.IRCAMERA
+
+        # Live scene rendering uses Panda3D's per-camera tag states.  Scene
+        # geometry remains normally textured for RGB cameras; only this camera
+        # substitutes temperature-derived palette colors during its traversal.
+        self.thermal_palette_bins = 64
+        self._thermal_nodes = []
 
     @property
     def WIDTH(self):
@@ -261,6 +270,141 @@ class IRCamera(Camera):
                 int(body_id)
             )
         return result
+
+    def setup_live_thermal_view(self, world):
+        """Configure this mounted camera to display scene temperature.
+
+        Each registered scene root receives a discrete palette-bin tag.  The
+        tag is reevaluated every frame, so an agent's rendered color follows
+        its live ``ThermalObject.temperature`` value without altering the
+        render state seen by any other camera.
+        """
+        if self.camera_node is None:
+            raise RuntimeError("IR camera must be mounted before thermal setup")
+
+        self._build_thermal_render_states()
+        self._register_scene_thermal_nodes(world)
+        self.refresh_live_thermal_colors()
+
+        task_name = f"update-{self.model_number}-thermal-view-{id(self)}"
+        world.taskMgr.add(self._update_live_thermal_view, task_name)
+        return self
+
+    def register_thermal_node(self, node_path, temperature_source, emissivity=None):
+        """Associate a Panda3D scene root with a live kelvin value.
+
+        ``temperature_source`` may be a number, a callable returning a number,
+        or an object exposing a ``temperature`` attribute.
+        """
+        if node_path is None or node_path.isEmpty():
+            return
+        self._thermal_nodes.append(
+            {
+                "node": node_path,
+                "source": temperature_source,
+                "emissivity": self.emissivity if emissivity is None else emissivity,
+            }
+        )
+
+    def refresh_live_thermal_colors(self):
+        """Update all scene tags from their current simulated temperatures."""
+        minimum, maximum = (float(value) for value in self.temperature_range_K)
+        bin_count = max(2, int(self.thermal_palette_bins))
+        for registration in self._thermal_nodes:
+            node = registration["node"]
+            if node.isEmpty():
+                continue
+            temperature = self._resolve_temperature(registration["source"])
+            apparent = float(
+                self.apparent_temperature(
+                    temperature,
+                    emissivity=float(registration["emissivity"]),
+                )
+            )
+            normalized = np.clip((apparent - minimum) / (maximum - minimum), 0, 1)
+            palette_bin = int(round(float(normalized) * (bin_count - 1)))
+            node.setTag("thermal-palette-bin", str(palette_bin))
+
+    def _build_thermal_render_states(self):
+        """Create flat-color states used only while this camera renders."""
+        bin_count = max(2, int(self.thermal_palette_bins))
+        self.camera_node.setTagStateKey("thermal-palette-bin")
+
+        # Untagged geometry is shown at ambient temperature, preventing RGB
+        # textures from leaking into the thermal view.
+        ambient_color = self._palette_color_for_temperature(
+            self.thermal_manager.ambient if self.thermal_manager else 293.0
+        )
+        self.camera_node.setInitialState(
+            self._make_flat_color_state(ambient_color, priority=50)
+        )
+
+        for palette_bin in range(bin_count):
+            normalized = palette_bin / float(bin_count - 1)
+            rgb = self._apply_palette(np.asarray(normalized), self.palette)
+            self.camera_node.setTagState(
+                str(palette_bin),
+                self._make_flat_color_state(rgb, priority=100),
+            )
+
+    def _register_scene_thermal_nodes(self, world):
+        self._thermal_nodes.clear()
+        materials = ThermalMaterialLibrary.MATERIALS
+
+        terrain = getattr(getattr(world, "terrain", None), "object", None)
+        if terrain is not None:
+            terrain_material = materials["terrain"]
+            self.register_thermal_node(
+                terrain, terrain_material["T"], terrain_material["emiss"]
+            )
+
+        trees = getattr(getattr(world, "object_loader", None), "static_object", {})
+        tree_material = materials["tree"]
+        for tree in trees.get("trees", []):
+            self.register_thermal_node(tree, tree_material["T"], tree_material["emiss"])
+
+        if self.agent is not None and self.agent.object_node_path is not None:
+            thermal_body = getattr(self.agent, "thermal_object", None)
+            source = thermal_body if thermal_body is not None else self.agent
+            emissivity = getattr(source, "emiss", materials["robot"]["emiss"])
+            self.register_thermal_node(
+                self.agent.object_node_path,
+                source,
+                emissivity,
+            )
+
+        sky = getattr(getattr(getattr(world, "sky", None), "sky", None), "sky", None)
+        if sky is not None and self.thermal_manager is not None:
+            self.register_thermal_node(sky, self.thermal_manager.T_sky, 1.0)
+
+    @staticmethod
+    def _resolve_temperature(source):
+        if callable(source):
+            source = source()
+        if hasattr(source, "temperature"):
+            source = source.temperature
+        return float(source)
+
+    def _palette_color_for_temperature(self, temperature_K):
+        minimum, maximum = (float(value) for value in self.temperature_range_K)
+        apparent = float(self.apparent_temperature(temperature_K))
+        normalized = np.clip((apparent - minimum) / (maximum - minimum), 0, 1)
+        return self._apply_palette(np.asarray(normalized), self.palette)
+
+    @staticmethod
+    def _make_flat_color_state(rgb, priority):
+        holder = NodePath(PandaNode("thermal-flat-color-state"))
+        color = np.asarray(rgb, dtype=np.float64) / 255.0
+        holder.setColor(float(color[0]), float(color[1]), float(color[2]), 1.0, priority)
+        holder.setTextureOff(priority)
+        holder.setLightOff(priority)
+        holder.setMaterialOff(priority)
+        holder.setShaderOff(priority)
+        return holder.getState()
+
+    def _update_live_thermal_view(self, task):
+        self.refresh_live_thermal_colors()
+        return task.cont
 
     def capture_scene_image(self):
         """Capture the Panda3D display region for this mounted camera."""

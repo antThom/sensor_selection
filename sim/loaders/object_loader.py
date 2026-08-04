@@ -58,3 +58,4 @@ class ObjectLoader:
                             position.append(z)
                         tree.setPos(*position)
                         tree.setScale(*object_dict[key].get("obj_scale"))
+                        self.static_object.setdefault("trees", []).append(tree)

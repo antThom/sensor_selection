@@ -103,6 +103,8 @@ class SensorLoader:
             lens.setFocalLength(float(focal_length))
 
         sensor.camera_node.setLens(lens)
+        if sensor.type is SensorType.IRCAMERA:
+            sensor.setup_live_thermal_view(self.world)
         self.world.camera_list.append(sensor)
         return sensor
 
