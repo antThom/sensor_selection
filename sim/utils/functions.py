@@ -1,7 +1,6 @@
 from datetime import datetime, time
+
 import yaml
-import os
-import json
 
 
 def string_to_time(time_str: str, fmt: str = "%H:%M:%S") -> time:
@@ -20,69 +19,65 @@ def string_to_time(time_str: str, fmt: str = "%H:%M:%S") -> time:
         # Parse the string into a datetime object
         parsed_time = datetime.strptime(time_str.strip(), fmt).time()
         return parsed_time
-    except ValueError as e:
-        raise ValueError(f"Invalid time format. Expected '{fmt}'. Error: {e}")
+    except ValueError as error:
+        raise ValueError(
+            f"Invalid time format. Expected '{fmt}'. Error: {error}"
+        ) from error
 
 
 def extract_yaml_configurations(file_path: str):
-    """_summary_
-    Loads a yaml file given a path
-
-    Args:
-        file_path (str): String of file path
-
-    Returns:
-        dict: generated dictionary created from yaml
-    """
+    """Load and return one UTF-8 YAML mapping."""
     try:
-        with open(file_path, "r") as file:
+        with open(file_path, encoding="utf-8") as file:
             configs = yaml.safe_load(file)
-    except FileNotFoundError as error:
-        print(f"Check configuration again! Path {file_path} was not found. ")
-        raise error
+    except FileNotFoundError:
+        raise FileNotFoundError(f"configuration file not found: {file_path}") from None
 
+    if not isinstance(configs, dict):
+        raise TypeError(f"configuration root must be a mapping: {file_path}")
     return configs
 
 
-def filter_arguements(valid_keys: dict, dict_to_filter, recuriveness=1) -> dict:
-    """_summary_
-    Filters through a dictionary and searches for valid keys.
+def filter_arguments(valid_keys, dictionary, recursion=1) -> dict:
+    """Return recognized keys found up to ``recursion`` mappings deep."""
+    allowed = set(valid_keys)
+    result = {}
 
-    Args:
-        valid_keys (dict): _description_
-        dict_to_filter (_type_): _description_
-        recurseiveness (int): How many levels the filter searches through
+    def visit(current, remaining):
+        for key, value in current.items():
+            if key in allowed:
+                result[key] = value
+            if remaining > 0 and isinstance(value, dict):
+                visit(value, remaining - 1)
 
-    Returns:
-        dict: _description_
-    """
+    visit(dictionary, max(int(recursion), 0))
+    return result
+
+
+def filter_arguements(valid_keys, dict_to_filter, recuriveness=1) -> dict:
+    """Deprecated compatibility wrapper for the historical misspelling."""
+    return filter_arguments(valid_keys, dict_to_filter, recuriveness)
 
 
 def set_attr_from_configuration(agent: object, config: dict, *args, **kwargs) -> None:
-    """_summary_
-    Given an agent object and configuration, will edit the internal configurations of the
-    agent according to a configuration file. If the attribute is not in the object or has a value of None, it will not be assigned.
+    """Apply recognized, non-null leaf configuration values to an object.
 
-    Args:
-        config (_type_): _description_
-
-    Returns:
-        _type_: _description_
+    Nested YAML sections are flattened because simulation classes expose
+    detector, model, and mount settings as ordinary attributes. Unknown keys
+    are intentionally ignored so one configuration can include metadata used
+    by multiple loaders.
     """
 
-    all_config_dict = dict()
+    all_config_dict = {}
 
     def search_dictionary(dictionary: dict):
-        for (
-            key,
-            value,
-        ) in dictionary.items():
+        for key, value in dictionary.items():
             if isinstance(value, dict):
                 search_dictionary(value)  # Unpack nested dictionaries
             else:
                 all_config_dict[key] = value
 
-    if isinstance(config, tuple) or isinstance(config, list):
+    if isinstance(config, (tuple, list)):
         for i in config:
             search_dictionary(i)
     else:
@@ -99,9 +94,7 @@ def set_attr_from_configuration(agent: object, config: dict, *args, **kwargs) ->
         if value is None:
             continue
 
-        if getattr(agent, attr, None) is None:
-            #    print(f"Attribute "{attr}"" is not a valid attribute of object {type(agent)} !")
-            # Let other attributes pass through (like sensor types on agent objects)
+        if not hasattr(agent, attr):
             continue
 
         setattr(agent, attr, value)

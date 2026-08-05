@@ -4,7 +4,6 @@ import yaml
 
 from sim.Sensors.Cameras.thermal_legend import ThermalLegend
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

@@ -1,11 +1,8 @@
-import numpy as np
-import os
+import yaml
+
 import sim.utils.CONSTANTS as ph
-import json
-from pathlib import Path
 from sim.Agent import agent as AGENT
 from sim.Environment.Thermal.thermal_manager import ThermalManager
-import yaml, json
 
 
 class Team:
@@ -51,7 +48,7 @@ class Team:
     def getNumAgents(self):
         self.Num_agents = 0
         # get the number of agents from the dict keys
-        for key in self.config.keys():
+        for key in self.config:
             if "agent" in key:
                 self.Num_agents += 1
 
@@ -70,5 +67,5 @@ class Team:
         return states
 
     def assignSenor(self, action):
-        for agent, act in zip(self.agents, action):
+        for agent, act in zip(self.agents, action, strict=False):
             agent.assignSenor(act)

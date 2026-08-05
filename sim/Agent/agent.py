@@ -5,21 +5,24 @@ from sim.rendering.object import RenderableObject
 
 
 class Agent(ThermalBody, RenderableObject):
+    """Rendered autonomous platform with sensors and a managed thermal body."""
+
     def __init__(self, thermal_manager=None):
         super().__init__(thermal_manager=thermal_manager)
 
-        """
-        Most of these variables contained here are class defaults
-        All of these will be configured by the `AgentLoader` classlater and through its
-        intermediates and helpers
-        """
+        # Position and orientation are inherited from RenderableObject. The
+        # remaining dynamics fields are agent-specific and retain array shapes
+        # expected by the microphone and control integrations.
+        self.agent_id = None
+        self.velocity = np.zeros((3, 1))
+        self.angular_rates = np.zeros((3, 1))
+        self.mass = 1.0
+        self.inertia = np.eye(3)
+        self.tf = {}
+        self.max_vel = 1.0
+        self.sensor_list = []
+        self.model_list = []
 
-        self.sensor_list = list()
-        self.model_list = list()
-
-        # Math 
-        # TODO: Need to intergrate pybullet for phyics and math
-        
     def get_id(self):
         return getattr(self, "agent_id", None)
 
@@ -29,12 +32,9 @@ class Agent(ThermalBody, RenderableObject):
     """
 
     def add_model(self, model):
-        """_summary_
-        Adds a model to the agent. A model must be attached before adding a sensor that uses it
-        """
-
-        # Actually adds and CONFIGURES the model to the agent
-        pass
+        """Register an auxiliary model with this agent."""
+        self.model_list.append(model)
+        return model
 
     def add_sensor(self, sensor, name=None):
         """Attach a configured sensor to this agent.

@@ -4,17 +4,9 @@ from sim.utils.functions import set_attr_from_configuration
 
 
 class RenderableObject:
-    """_summary_
-    Class that managees the rendering of objects into panda3D. Inherited by all rendered objects (except terrain) in the simulation
-    """
+    """Configuration and Panda3D node references shared by rendered objects."""
 
     def __init__(self):
-        """_summary_
-        Sets up variables and configurations of the rendered object for panda3D. To configure the object and make it actually render, call `configure_model()`.
-        To configure textures, call `set_texture()`.
-        Args:
-            config (dict): _description_
-        """
         self.name = ""
 
         self.position = [0, 0, 0]
@@ -22,7 +14,7 @@ class RenderableObject:
         self.color = [255, 255, 255]  # In the format of RGB
         self.scale = 1
 
-        self.object_node = None  # Dummy node to hold all nodes related to an object.
+        self.object_node = None
         self.object_node_path = None
         self.parent_node_path = None
 
@@ -30,28 +22,17 @@ class RenderableObject:
         self.model_node_path = None
 
         self.model: str = ""
-        self.animations: list = list()
-        self.textures: list = list()
+        self.animations: list = []
+        self.textures: list = []
 
     def set_configs(self, config: dict, *args, **kwargs):
-        """_summary_
-        Hook for manually adding configurations
-        Args:
-            config (dict): _description_
-        """
-
+        """Apply one or more nested configuration mappings."""
         set_attr_from_configuration(self, config, args, kwargs)
 
     def configure_model(self) -> None:
-        """_summary_
-        Plugs the object's settings into panda3d.
-        Make sure to pair the node to it's parent node so it will render
-
-        Args:
-            world (ShowBase): _description_
-        """
-
-    #    self.model_node_path.setTwoSided(True)
+        """Apply configured transform and display color to the scene node."""
+        if self.object_node_path is None:
+            raise RuntimeError("generate a simulation node before configuring it")
 
         if self.parent_node_path is not None:
             self.object_node_path.setPos(
@@ -70,13 +51,4 @@ class RenderableObject:
         )
         self.object_node_path.setScale(self.scale)
 
-        # ignoring fancy transparency from panda3d
         self.object_node_path.setColor(self.color[0], self.color[1], self.color[2], 1)
-
-    def set_textures(self):
-        """_summary_
-        Renders textures with the provided settings
-        """
-
-        # Textures in panda3d are really complicated
-        pass

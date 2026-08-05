@@ -1,15 +1,7 @@
 import numpy as np
-import pybullet as p
-import pybullet_data
-import time
-import json
-import os
-import threading
-from pathlib import Path
-import simpleaudio as sa
 import soundfile as sf
-import sounddevice as sd
-from sim.utils.CONSTANTS import *
+
+from sim.utils.CONSTANTS import SPEED_OF_SOUND
 
 
 class SoundPointSource:
@@ -18,11 +10,11 @@ class SoundPointSource:
         sound_file,
         dt,
         loop=True,
-        position=np.zeros((3, 1)),
-        velocity=np.zeros((3, 1)),
+        position=None,
+        velocity=None,
     ):
-        self.pos = position
-        self.vel = velocity
+        self.pos = np.zeros((3, 1)) if position is None else position
+        self.vel = np.zeros((3, 1)) if velocity is None else velocity
         self.volume = 1.0
         self.speed_of_sound = SPEED_OF_SOUND
         self.dt = dt

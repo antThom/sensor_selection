@@ -1,14 +1,15 @@
-import numpy as np
-import os
 import json
-import sim.utils.CONSTANTS as ph
-import pybullet as p
-import pybullet_data
+import os
 from pathlib import Path
+
+import numpy as np
+import pybullet as p
 from scipy.spatial.transform import Rotation as Rot
+
+import sim.utils.CONSTANTS as ph
 from sim.Environment.Thermal.thermal_manager import ThermalManager
 from sim.Sensors.sensor import load_sensor_from_file
-from sim.utils.CONSTANTS import *
+from sim.utils.CONSTANTS import SIM_DT
 
 
 class Agent:
@@ -128,7 +129,6 @@ class Agent:
 
     def config_sensors(self, sensors_cfg):
         self.sensors = []
-        sensor_mounts = {}
 
         for name, entry in sensors_cfg.items():
             if not isinstance(entry, dict) or "file" not in entry:

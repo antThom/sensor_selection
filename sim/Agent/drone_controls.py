@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import ClassVar
 
 import numpy as np
 from panda3d.core import ClockObject
@@ -11,7 +12,7 @@ from panda3d.core import ClockObject
 class DroneControls:
     """Move the first loaded agent while keeping simulation state synchronized."""
 
-    MOVEMENT_KEYS = {
+    MOVEMENT_KEYS: ClassVar[dict[str, str]] = {
         "w": "forward",
         "s": "backward",
         "a": "left",
@@ -30,7 +31,7 @@ class DroneControls:
         self.move_speed = float(move_speed)
         self.rotation_speed = float(rotation_speed)
         self.clock = ClockObject.getGlobalClock()
-        self.key_state = {action: False for action in self.MOVEMENT_KEYS.values()}
+        self.key_state = dict.fromkeys(self.MOVEMENT_KEYS.values(), False)
 
         for key, action in self.MOVEMENT_KEYS.items():
             world.accept(key, self.set_key, [action, True])
@@ -71,21 +72,23 @@ class DroneControls:
         magnitude = float(np.linalg.norm(direction))
         if magnitude > 0.0:
             displacement = direction / magnitude * self.move_speed * dt
+            current = node.getPos(self.world.render)
             node.setPos(
                 self.world.render,
-                node.getPos(self.world.render)
-                + (float(displacement[0]), float(displacement[1]), float(displacement[2])),
+                current.x + float(displacement[0]),
+                current.y + float(displacement[1]),
+                current.z + float(displacement[2]),
             )
-            self.agent.velocity = (direction / magnitude * self.move_speed).reshape(3, 1)
+            self.agent.velocity = (direction / magnitude * self.move_speed).reshape(
+                3, 1
+            )
         else:
             self.agent.velocity = np.zeros((3, 1))
 
         heading_input = float(
             self.key_state["turn_right"] - self.key_state["turn_left"]
         )
-        pitch_input = float(
-            self.key_state["pitch_up"] - self.key_state["pitch_down"]
-        )
+        pitch_input = float(self.key_state["pitch_up"] - self.key_state["pitch_down"])
         node.setH(node.getH() + heading_input * self.rotation_speed * dt)
         node.setP(node.getP() + pitch_input * self.rotation_speed * dt)
 

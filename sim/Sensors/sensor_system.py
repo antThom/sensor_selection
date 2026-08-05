@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any
 
 from .latest_value import LatestValue
 from .sensor_worker import SensorWorker
@@ -25,7 +25,7 @@ class SensorSystem:
     """
 
     def __init__(self):
-        self._sensors: Dict[str, SensorHandle] = {}
+        self._sensors: dict[str, SensorHandle] = {}
 
     def register_sensor(
         self, name: str, capture_fn, rate_hz: float, enabled: bool = True
@@ -60,16 +60,16 @@ class SensorSystem:
         h.rate_hz = float(rate_hz)
         h.worker.set_rate(rate_hz)
 
-    def read(self, name: str) -> Tuple[Any, float, int]:
+    def read(self, name: str) -> tuple[Any, float, int]:
         return self._sensors[name].latest.read()
 
-    def snapshot(self, names: Optional[List[str]] = None) -> Dict[str, Any]:
-        out: Dict[str, Any] = {}
+    def snapshot(self, names: list[str] | None = None) -> dict[str, Any]:
+        out: dict[str, Any] = {}
         keys = names if names is not None else list(self._sensors.keys())
         for k in keys:
-            v, ts, seq = self._sensors[k].latest.read()
+            v, _, _ = self._sensors[k].latest.read()
             out[k] = v
         return out
 
-    def all_names(self) -> List[str]:
+    def all_names(self) -> list[str]:
         return list(self._sensors.keys())

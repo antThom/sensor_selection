@@ -1,19 +1,14 @@
 import numpy as np
 import pybullet as p
-from scipy.signal import resample
-from sim.Sensors.sensor import Sensor
 from scipy.spatial.transform import Rotation as Rot
-import sounddevice as sd
-import soundfile as sf
-import threading
-import time
-from sim.Sound.audio_mixer import AudioMixer
-from sim.utils.CONSTANTS import *
+
+from sim.Sensors.sensor import Sensor
+from sim.utils.CONSTANTS import SIM_DT, SPEED_OF_SOUND
 
 
 class MicrophoneSensor_Uniform(Sensor):
     def __init__(self, param: dict, name: str):
-        super().__init__(param)  # keep config in base
+        super().__init__()
         self.name = name
         self.speed_of_sound = SPEED_OF_SOUND
         self.forward = param.get("forward", [0, 0, 1])
@@ -33,13 +28,13 @@ class MicrophoneSensor_Uniform(Sensor):
 
     def get_world_position(self):
         if self.attached_body is not None:
-            pos, orn = p.getBasePositionAndOrientation(self.attached_body)
+            pos, _ = p.getBasePositionAndOrientation(self.attached_body)
             return np.array(pos)
         return self.pos
 
     def set_pos_vel(self, pos, vel):
         if self.attached_body is not None:
-            pos, orn = p.getBasePositionAndOrientation(self.attached_body)
+            pos, _ = p.getBasePositionAndOrientation(self.attached_body)
         self.pos = pos
         self.vel = vel
 

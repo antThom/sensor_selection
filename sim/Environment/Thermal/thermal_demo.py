@@ -4,7 +4,6 @@ import math
 import sys
 from pathlib import Path
 
-
 args = sys.argv[1:]
 root = Path(__file__).resolve().parents[3]
 if str(root) not in sys.path:
@@ -12,8 +11,22 @@ if str(root) not in sys.path:
 
 try:
     import pybullet as p
-    from ursina import AmbientLight, DirectionalLight, Entity, Sky, Text, Ursina
-    from ursina import Vec3, camera, clamp, color, held_keys, mouse, time, window
+    from ursina import (
+        AmbientLight,
+        DirectionalLight,
+        Entity,
+        Sky,
+        Text,
+        Ursina,
+        Vec3,
+        camera,
+        clamp,
+        color,
+        held_keys,
+        mouse,
+        time,
+        window,
+    )
     from ursina.shaders import lit_with_shadows_shader
 except ImportError as error:
     raise SystemExit(
@@ -21,7 +34,6 @@ except ImportError as error:
     ) from error
 
 from sim.Environment.Thermal.thermal_static_object import ThermalStaticObject
-
 
 demo = None
 
@@ -54,9 +66,7 @@ class FlyCamera(Entity):
         )
         if move.length() > 0:
             boost = 2.0 if held_keys["shift"] else 1.0
-            self.position += (
-                move.normalized() * self.speed * boost * time.dt
-            )
+            self.position += move.normalized() * self.speed * boost * time.dt
 
     def input(self, key):
         if key == "tab":
@@ -125,9 +135,7 @@ class ThermalDemo:
         )
         self.sunlight = DirectionalLight(shadows=True)
         self.sunlight.look_at(Vec3(-0.45, -0.84, 0.30))
-        self.ambient_light = AmbientLight(
-            color=color.rgba(105, 116, 128, 255)
-        )
+        self.ambient_light = AmbientLight(color=color.rgba(105, 116, 128, 255))
         FlyCamera()
 
         self.readout = Text(
@@ -148,7 +156,7 @@ class ThermalDemo:
             float(elapsed) * self.options.time_scale,
             0.0,
         )
-        steps = max(1, int(math.ceil(simulation_dt / 2.0)))
+        steps = max(1, math.ceil(simulation_dt / 2.0))
         step_dt = simulation_dt / steps
         for _ in range(steps):
             shade = self.cube.sunlight(self.sun_direction)
@@ -181,8 +189,7 @@ class ThermalDemo:
         cold = (57, 118, 153)
         hot = (210, 74, 58)
         rgb = [
-            int(cold[index] + amount * (hot[index] - cold[index]))
-            for index in range(3)
+            int(cold[index] + amount * (hot[index] - cold[index])) for index in range(3)
         ]
         self.cube_view.color = color.rgb(*rgb)
 
@@ -193,9 +200,7 @@ class ThermalDemo:
 
 def main():
     global demo
-    parser = argparse.ArgumentParser(
-        description="Panda3D/PyBullet thermal cube demo"
-    )
+    parser = argparse.ArgumentParser(description="Panda3D/PyBullet thermal cube demo")
     parser.add_argument(
         "--wind",
         type=float,

@@ -9,9 +9,9 @@ from panda3d.core import NodePath, PandaNode, ShaderAttrib
 
 from sim.Agent.agent import Agent
 from sim.Environment.Thermal.thermal_manager import ThermalManager
+from sim.loaders.sensor_loader import SensorLoader
 from sim.Sensors.Cameras.ir_camera import IRCamera
 from sim.Sensors.sensor import SensorType
-from sim.loaders.sensor_loader import SensorLoader
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "config" / "sensors"

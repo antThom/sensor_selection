@@ -17,7 +17,9 @@ class ThermalLegend:
     def __init__(self, world, camera):
         self.world = world
         self.camera = camera
-        self.root = world.aspect2d.attachNewNode(f"{camera.model_number}-thermal-legend")
+        self.root = world.aspect2d.attachNewNode(
+            f"{camera.model_number}-thermal-legend"
+        )
         self.root.setDepthTest(False)
         self.root.setDepthWrite(False)
         self.root.setBin("fixed", 100)
@@ -85,8 +87,9 @@ class ThermalLegend:
 
         normalized = np.linspace(0.0, 1.0, self.SEGMENT_COUNT)
         colors = self.camera._apply_palette(normalized, palette_name)
-        for frame, color in zip(self.segments, colors):
-            frame["frameColor"] = tuple(float(channel) / 255.0 for channel in color) + (
+        for frame, color in zip(self.segments, colors, strict=True):
+            frame["frameColor"] = (
+                *(float(channel) / 255.0 for channel in color),
                 1.0,
             )
 

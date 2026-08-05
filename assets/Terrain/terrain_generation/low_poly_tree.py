@@ -1,5 +1,4 @@
 import numpy as np
-import os
 
 
 def save_obj(filename, vertices, faces):
@@ -43,7 +42,7 @@ def create_cone(radius, height, segments, z_offset):
         [radius * np.cos(i * angle_step), radius * np.sin(i * angle_step), z_offset]
         for i in range(segments)
     ]
-    vertices = [apex] + base
+    vertices = [apex, *base]
 
     faces = []
     for i in range(segments):

@@ -1,10 +1,9 @@
 from sim.Environment.Terrain.sky import SKY
-from sim.Environment.Terrain.sun import SUN
 
 
 class ATMOSPHERE:
     def __init__(self, loader, config, render):
-        for key in config.keys():
+        for key in config:
             if key == "sky":
                 self.sky = SKY(
                     config=config[key],

@@ -13,7 +13,6 @@ pixel pitch are millimetres and micrometres respectively, and NETD is kelvin.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from panda3d.core import ClockObject, NodePath, PandaNode, PNMImage, Shader, Vec4
@@ -29,7 +28,7 @@ from sim.Sensors.sensor import SensorType
 class IRCamera(Camera):
     """Agent-mounted radiometric IR camera with configurable optics."""
 
-    def __init__(self, thermal_manager: Optional[ThermalManager] = None):
+    def __init__(self, thermal_manager: ThermalManager | None = None):
         super().__init__()
 
         # Identification and detector construction.
@@ -159,7 +158,9 @@ class IRCamera(Camera):
         if float(self.temperature_range_K[0]) >= float(self.temperature_range_K[1]):
             raise ValueError("temperature range minimum must be below maximum")
         if len(self.display_temperature_range_K) != 2:
-            raise ValueError("display_temperature_range_K must contain [minimum, maximum]")
+            raise ValueError(
+                "display_temperature_range_K must contain [minimum, maximum]"
+            )
         if float(self.display_temperature_range_K[0]) >= float(
             self.display_temperature_range_K[1]
         ):
@@ -178,8 +179,8 @@ class IRCamera(Camera):
         self,
         surface_temperature_K,
         *,
-        emissivity: Optional[float] = None,
-        atmospheric_transmission: Optional[float] = None,
+        emissivity: float | None = None,
+        atmospheric_transmission: float | None = None,
     ):
         """Apply a compact radiance-space atmosphere/emissivity model.
 
@@ -216,7 +217,7 @@ class IRCamera(Camera):
         self,
         temperature_frame_K,
         *,
-        palette: Optional[str] = None,
+        palette: str | None = None,
         add_noise: bool = True,
     ):
         """Convert a two-dimensional kelvin array to an 8-bit RGB image."""

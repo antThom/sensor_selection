@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 from panda3d.core import NodePath, PandaNode
 
 from sim.Agent.agent import Agent

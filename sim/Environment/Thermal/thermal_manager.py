@@ -1,4 +1,5 @@
 import math
+from typing import ClassVar
 
 try:
     import pybullet as p
@@ -9,7 +10,7 @@ from sim.Environment.ThermalObject.ThermalObject import ThermalObject
 
 
 class ThermalMaterialLibrary:
-    DEFAULT = {
+    DEFAULT: ClassVar[dict[str, float]] = {
         "T": 288.8,
         "cp": 900.0,
         "density": 1000.0,
@@ -19,7 +20,7 @@ class ThermalMaterialLibrary:
         "natural_h": 5.0,
     }
 
-    MATERIALS = {
+    MATERIALS: ClassVar[dict[str, dict[str, float]]] = {
         "tree": {
             "T": 294.3,
             "cp": 1700.0,
@@ -144,9 +145,7 @@ class ThermalManager:
             client_id=self.physics_client,
             material=material_values,
             temperature=(
-                material_values.get("T", self.ambient)
-                if init_T is None
-                else init_T
+                material_values.get("T", self.ambient) if init_T is None else init_T
             ),
             dimensions=dimensions,
             position=position,
@@ -179,9 +178,7 @@ class ThermalManager:
 
     def sun_direction(self):
         hour = self._hour() % 24.0
-        elevation = max(
-            0.0, math.sin(math.pi * (hour - 6.0) / 12.0)
-        )
+        elevation = max(0.0, math.sin(math.pi * (hour - 6.0) / 12.0))
         if elevation <= 0:
             return None
         azimuth = 2.0 * math.pi * (hour - 6.0) / 24.0
@@ -206,7 +203,7 @@ class ThermalManager:
         return base_key if base_key in self.objects else None
 
     def _contact_rates(self, temperatures):
-        rates = {key: 0.0 for key in self.objects}
+        rates = dict.fromkeys(self.objects, 0.0)
         if p is None:
             return rates
         options = (
@@ -216,7 +213,7 @@ class ThermalManager:
         )
         try:
             contact_points = p.getContactPoints(**options)
-        except Exception:
+        except (p.error, TypeError, ValueError):
             return rates
 
         pairs = set()
@@ -229,27 +226,17 @@ class ThermalManager:
         for first, second in pairs:
             object_a = self.objects[first]
             object_b = self.objects[second]
-            area = max(
-                min(object_a.contact_area, object_b.contact_area), 1e-9
-            )
-            resistance = object_a.contact_length / (
-                max(object_a.k, 1e-9) * area
-            )
-            resistance += object_b.contact_length / (
-                max(object_b.k, 1e-9) * area
-            )
-            watts_to_a = (
-                temperatures[second] - temperatures[first]
-            ) / resistance
+            area = max(min(object_a.contact_area, object_b.contact_area), 1e-9)
+            resistance = object_a.contact_length / (max(object_a.k, 1e-9) * area)
+            resistance += object_b.contact_length / (max(object_b.k, 1e-9) * area)
+            watts_to_a = (temperatures[second] - temperatures[first]) / resistance
             rates[first] += watts_to_a
             rates[second] -= watts_to_a
         return rates
 
     def update(self, dt, irradiance, wind=None, sun_direction=None):
         temperatures = self.temperature_map()
-        direction = (
-            self.sun_direction() if sun_direction is None else sun_direction
-        )
+        direction = self.sun_direction() if sun_direction is None else sun_direction
         wind_speed = self.wind_speed if wind is None else float(wind)
         contact_rates = self._contact_rates(temperatures)
 
@@ -266,21 +253,13 @@ class ThermalManager:
                 wind_speed=wind_speed,
                 solar_irradiance=irradiance,
                 sun_fraction=shade,
-                sun_direction=(
-                    (0.0, 0.0, 1.0)
-                    if direction is None
-                    else direction
-                ),
+                sun_direction=((0.0, 0.0, 1.0) if direction is None else direction),
                 conductive_watts=contact_rates[key],
             )
 
     def get_temperature(self, body_id, link_id=-1):
         thermal_object = self.objects.get((body_id, link_id))
-        return (
-            self.ambient
-            if thermal_object is None
-            else thermal_object.temperature
-        )
+        return self.ambient if thermal_object is None else thermal_object.temperature
 
     def get_body_objects(self, body_id):
         return {
@@ -322,7 +301,7 @@ class ThermalManager:
         )
         try:
             number_of_links = p.getNumJoints(body_id, **options)
-        except Exception:
+        except (p.error, TypeError, ValueError):
             return primary
         for link_id in range(number_of_links):
             self.add_object(

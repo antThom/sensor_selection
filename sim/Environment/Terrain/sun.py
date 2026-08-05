@@ -1,9 +1,7 @@
-from direct.showbase.ShowBase import ShowBase
-from panda3d.core import PointLight, AmbientLight, LVector3, TextureStage, Loader
-from panda3d.core import Filename, DirectionalLight, Vec4, Vec3
-from sim.utils.functions import string_to_time
 import numpy as np
-import sys
+from panda3d.core import DirectionalLight, Vec4
+
+from sim.utils.functions import string_to_time
 
 light_temp = np.array([1000, 2700, 5500, 6500, 10000])
 light_rgb = np.array(

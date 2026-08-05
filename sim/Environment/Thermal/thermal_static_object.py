@@ -28,12 +28,8 @@ class ThermalStaticObject(ThermalObject):
         **thermal,
     ):
         if p is None:
-            raise RuntimeError(
-                "pybullet is required to create a thermal static body"
-            )
-        options = (
-            {} if client_id is None else {"physicsClientId": client_id}
-        )
+            raise RuntimeError("pybullet is required to create a thermal static body")
+        options = {} if client_id is None else {"physicsClientId": client_id}
         half_extents = [float(side) / 2.0 for side in size]
         shape = p.createCollisionShape(
             p.GEOM_BOX,

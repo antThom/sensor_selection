@@ -4,7 +4,6 @@ import math
 import sys
 from pathlib import Path
 
-
 args = sys.argv[1:]
 root = Path(__file__).resolve().parents[3]
 if str(root) not in sys.path:
@@ -17,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from sim.Environment.ThermalObject import ThermalObject
-
 
 AMBIENT = 270.0
 START_TEMP = 300.0
@@ -67,9 +65,8 @@ def new_cube():
 
 
 def blank_energy():
-    return {
-        key: 0.0
-        for key in (
+    return dict.fromkeys(
+        (
             "conduction",
             "convection",
             "longwave",
@@ -77,8 +74,9 @@ def blank_energy():
             "radiation",
             "internal",
             "total",
-        )
-    }
+        ),
+        0.0,
+    )
 
 
 def add_row(rows, suite, scenario, elapsed, thermal_object, energy, details):
@@ -97,12 +95,7 @@ def add_row(rows, suite, scenario, elapsed, thermal_object, energy, details):
             for key in thermal_object.last_rates
         }
     )
-    row.update(
-        {
-            f"energy_{key}_kJ": energy[key] / 1000.0
-            for key in energy
-        }
-    )
+    row.update({f"energy_{key}_kJ": energy[key] / 1000.0 for key in energy})
     rows.append(row)
 
 
@@ -127,7 +120,7 @@ def run_series(
         energy,
         details,
     )
-    for index in range(1, int(round(duration / dt)) + 1):
+    for index in range(1, round(duration / dt) + 1):
         thermal_object.step(dt, **conditions)
         for key, watts in thermal_object.last_rates.items():
             energy[key] += watts * dt
@@ -168,10 +161,14 @@ def display_path(path):
     try:
         return path.relative_to(root)
     except ValueError:
-        return str(path).encode(
-            "ascii",
-            "backslashreplace",
-        ).decode("ascii")
+        return (
+            str(path)
+            .encode(
+                "ascii",
+                "backslashreplace",
+            )
+            .decode("ascii")
+        )
 
 
 def run_conduction(duration, dt, data_directory, graph_directory):
@@ -219,8 +216,7 @@ def run_conduction(duration, dt, data_directory, graph_directory):
         direction = "hot" if graph_number == 1 else "cold"
         save_figure(
             figure,
-            graph_directory
-            / f"0{graph_number}_conduction_{direction}.png",
+            graph_directory / f"0{graph_number}_conduction_{direction}.png",
         )
     save_csv(all_rows, data_directory / "conduction.csv")
     return all_rows
@@ -247,18 +243,14 @@ def run_convection(interval, dt, data_directory, graph_directory):
                 "interval_s": interval,
                 "heat_removed_kJ": -final["energy_convection_kJ"],
                 "final_temperature_K": final["temperature_K"],
-                "temperature_change_K": (
-                    final["temperature_K"] - START_TEMP
-                ),
+                "temperature_change_K": (final["temperature_K"] - START_TEMP),
             }
         )
 
     figure, axes = plt.subplots(2, 1, figsize=(9, 7.6), sharex=True)
     winds = [row["wind_m_s"] for row in summary]
     removed = [row["heat_removed_kJ"] for row in summary]
-    final_temperatures = [
-        row["final_temperature_K"] for row in summary
-    ]
+    final_temperatures = [row["final_temperature_K"] for row in summary]
     axes[0].plot(winds, removed, color=COLORS["cold"], linewidth=2.4)
     axes[0].set_ylabel("Heat removed (kJ)")
     axes[1].plot(
@@ -352,15 +344,11 @@ def run_combined(duration, dt, data_directory, graph_directory):
         sharey=True,
     )
 
-    for row_index, (contact_name, surface_temperature) in enumerate(
-        contacts
-    ):
+    for row_index, (contact_name, surface_temperature) in enumerate(contacts):
         for column_index, (light_name, fraction) in enumerate(lighting):
             axis = axes[row_index, column_index]
-            for wind, line_color in zip(winds, colors):
-                scenario = (
-                    f"{contact_name}_{light_name}_wind_{wind:.0f}"
-                )
+            for wind, line_color in zip(winds, colors, strict=True):
+                scenario = f"{contact_name}_{light_name}_wind_{wind:.0f}"
                 case = run_series(
                     "combined",
                     scenario,
@@ -389,13 +377,9 @@ def run_combined(duration, dt, data_directory, graph_directory):
                     linewidth=2.0,
                     label=f"{wind:.0f} m/s",
                 )
-            axis.set_title(
-                f"{contact_name.title()} surface | {light_name.title()}"
-            )
+            axis.set_title(f"{contact_name.title()} surface | {light_name.title()}")
 
-    figure.suptitle(
-        "Combined conduction, convection, and radiation"
-    )
+    figure.suptitle("Combined conduction, convection, and radiation")
     figure.supxlabel("Elapsed time (min)")
     figure.supylabel("Cube temperature (K)")
     handles, labels = axes[0, 0].get_legend_handles_labels()
@@ -445,9 +429,7 @@ def perform_sanity_checks(
             * exposed_area
             / cube.thermal_mass
         )
-        exact = AMBIENT + (START_TEMP - AMBIENT) * math.exp(
-            -rate * row["interval_s"]
-        )
+        exact = AMBIENT + (START_TEMP - AMBIENT) * math.exp(-rate * row["interval_s"])
         convection_error = max(
             convection_error,
             abs(row["final_temperature_K"] - exact),
@@ -458,17 +440,13 @@ def perform_sanity_checks(
         last_rows[row["scenario"]] = row
     energy_error = max(
         abs(
-            (row["temperature_K"] - START_TEMP)
-            * cube.thermal_mass
-            / 1000.0
+            (row["temperature_K"] - START_TEMP) * cube.thermal_mass / 1000.0
             - row["energy_total_kJ"]
         )
         for row in last_rows.values()
     )
 
-    removed = [
-        row["heat_removed_kJ"] for row in convection_summary
-    ]
+    removed = [row["heat_removed_kJ"] for row in convection_summary]
     scenarios = {row["scenario"] for row in combined_rows}
     checks = [
         {
@@ -507,23 +485,17 @@ def perform_sanity_checks(
         {
             "check": "sun adds more radiation than shade",
             "passed": (
-                sun_row["energy_radiation_kJ"]
-                > shade_row["energy_radiation_kJ"]
+                sun_row["energy_radiation_kJ"] > shade_row["energy_radiation_kJ"]
             ),
             "value": (
-                sun_row["energy_radiation_kJ"]
-                - shade_row["energy_radiation_kJ"]
+                sun_row["energy_radiation_kJ"] - shade_row["energy_radiation_kJ"]
             ),
             "expected": "> 0 kJ spread",
         },
         {
             "check": "sun case ends warmer than shade",
-            "passed": (
-                sun_row["temperature_K"] > shade_row["temperature_K"]
-            ),
-            "value": (
-                sun_row["temperature_K"] - shade_row["temperature_K"]
-            ),
+            "passed": (sun_row["temperature_K"] > shade_row["temperature_K"]),
+            "value": (sun_row["temperature_K"] - shade_row["temperature_K"]),
             "expected": "> 0 K spread",
         },
         {
@@ -540,10 +512,7 @@ def perform_sanity_checks(
         },
         {
             "check": "combined values are finite",
-            "passed": all(
-                math.isfinite(row["temperature_K"])
-                for row in combined_rows
-            ),
+            "passed": all(math.isfinite(row["temperature_K"]) for row in combined_rows),
             "value": len(combined_rows),
             "expected": "all rows finite",
         },
@@ -564,11 +533,7 @@ def main():
     parser.add_argument("--interval-minutes", type=float, default=30.0)
     parser.add_argument("--dt", type=float, default=5.0)
     options = parser.parse_args(args)
-    if (
-        options.duration_hours <= 0
-        or options.interval_minutes <= 0
-        or options.dt <= 0
-    ):
+    if options.duration_hours <= 0 or options.interval_minutes <= 0 or options.dt <= 0:
         parser.error("durations and dt must be positive")
 
     output_directory = Path(options.output)

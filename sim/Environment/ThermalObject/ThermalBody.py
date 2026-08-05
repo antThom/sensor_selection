@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 
 class ThermalBody:
     """Mixin that gives a rendered object a managed thermal component."""
@@ -11,7 +9,7 @@ class ThermalBody:
         self.thermal_manager = thermal_manager
         self.thermal_object = None
         self.thermal_objects = {}
-        self._thermal_body_id: Optional[int] = None
+        self._thermal_body_id: int | None = None
 
     def _thermal_position(self):
         position = getattr(self, "position", (0.0, 0.0, 0.0))
@@ -34,9 +32,7 @@ class ThermalBody:
         if thermal_manager is not None:
             self.thermal_manager = thermal_manager
         if self.thermal_manager is None:
-            raise RuntimeError(
-                "A ThermalManager is required before attaching a body"
-            )
+            raise RuntimeError("A ThermalManager is required before attaching a body")
 
         if self._thermal_body_id is not None:
             self.thermal_manager.unregister_body(self._thermal_body_id)
@@ -49,9 +45,7 @@ class ThermalBody:
             per_link=per_link,
             position=self._thermal_position(),
         )
-        self.thermal_objects = self.thermal_manager.get_body_objects(
-            resolved_body_id
-        )
+        self.thermal_objects = self.thermal_manager.get_body_objects(resolved_body_id)
         return self.thermal_object
 
     def sync_thermal_position(self):
@@ -61,10 +55,7 @@ class ThermalBody:
             thermal_object.set_fallback_position(position)
 
     def detach_thermal(self):
-        if (
-            self.thermal_manager is not None
-            and self._thermal_body_id is not None
-        ):
+        if self.thermal_manager is not None and self._thermal_body_id is not None:
             self.thermal_manager.unregister_body(self._thermal_body_id)
         self._thermal_body_id = None
         self.thermal_object = None
@@ -72,8 +63,4 @@ class ThermalBody:
 
     @property
     def temperature(self):
-        return (
-            None
-            if self.thermal_object is None
-            else self.thermal_object.temperature
-        )
+        return None if self.thermal_object is None else self.thermal_object.temperature
