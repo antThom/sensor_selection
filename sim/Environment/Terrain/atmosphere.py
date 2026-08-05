@@ -1,5 +1,5 @@
-from sim.environment.terrain.sky import SKY
-from sim.environment.terrain.sun import SUN
+from sim.Environment.Terrain.sky import SKY
+from sim.Environment.Terrain.sun import SUN
 
 
 class ATMOSPHERE:

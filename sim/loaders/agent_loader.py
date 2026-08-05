@@ -4,10 +4,8 @@ This loads camera and agent controls (agents haven't been implemented yet)
 
 from math import pi, sin, cos
 
-from sim.agent.agent import Agent
+from sim.Agent.agent import Agent
 from sim.utils.functions import extract_yaml_configurations, set_attr_from_configuration
-
-from sim.environment.ThermalObject.ThermalObject import ThermalObject
 
 
 class AgentLoader:
@@ -31,11 +29,15 @@ class AgentLoader:
             agent_config_file = extract_yaml_configurations(
                 self.config["agents"][agent_config]["config_path"]
             )
-            new_agent = Agent()
+            new_agent = Agent(thermal_manager=self.world.thermal_model)
 
             # Set configurations twice: once for the template file and second for the top level config
             set_attr_from_configuration(new_agent, agent_config_file)
             set_attr_from_configuration(new_agent, self.config["agents"][agent_config])
+            new_agent.attach_thermal(
+                body_id=getattr(new_agent, "agent_id", None),
+                source=getattr(new_agent, "model", None) or new_agent.name,
+            )
 
             # load math models somehow somewhere???
             # Find a way to attach agents to the model so that it can update them
@@ -52,21 +54,22 @@ class AgentLoader:
 
             # load sensors (sensor loader will deal with it)
             for sensor_config in agent_config_file["sensors"]:
+                sensor_reference = agent_config_file["sensors"][sensor_config]
                 new_sensor = self.world.sensor_loader.create_sensor(
-                    agent_config_file["sensors"][sensor_config]["type"],
-                    agent_config_file["sensors"][sensor_config],
-                    extract_yaml_configurations(
-                        agent_config_file["sensors"][sensor_config]["config_path"]
-                    ),
+                    sensor_reference["type"],
+                    sensor_reference,
+                    extract_yaml_configurations(sensor_reference["config_path"]),
                 )
 
                 sim_man.generate_simulation_node(new_sensor, new_sensor.model)
                 sim_man.parent_object_models(new_agent, new_sensor)
                 sim_man.configure_sim_model(new_sensor)
 
+                # The camera setup needs the owning agent so it can parent the
+                # optical node to the agent and follow the agent's pose.
+                new_agent.add_sensor(new_sensor, sensor_config)
                 self.world.sensor_loader.setup_sensor(new_sensor)
                 sim_man.render_object(new_sensor)
-                new_agent.add_sensor(new_sensor, sensor_config)
             # for model in agent_config_file["models"]:
             #     new_agent.add_model(model)
 

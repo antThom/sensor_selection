@@ -44,6 +44,12 @@ class SimulationManager:
         object_to_change.object_node = PandaNode(object_to_change.name)
         object_to_change.object_node_path = NodePath(object_to_change.object_node)
 
+        # Some sensors only need a transform anchor, not visible geometry.
+        if not model:
+            object_to_change.model_node = None
+            object_to_change.model_node_path = None
+            return object_to_change.object_node_path
+
         try:
             object_to_change.model_node = self.world.loader.loadModel(model)
             object_to_change.model_node_path = NodePath(object_to_change.model_node)

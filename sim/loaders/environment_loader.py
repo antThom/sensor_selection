@@ -13,11 +13,11 @@ from panda3d.core import (
     CollisionHandlerQueue,
     BitMask32,
 )
-from sim.environment.terrain.atmosphere import ATMOSPHERE
-from sim.environment.terrain.sky import SKY
-from sim.environment.terrain.sun import SUN
-from sim.environment.terrain.terrain import TERRAIN
-from sim.environment.terrain.tree import TREE
+from sim.Environment.Terrain.atmosphere import ATMOSPHERE
+from sim.Environment.Terrain.sky import SKY
+from sim.Environment.Terrain.sun import SUN
+from sim.Environment.Terrain.terrain import TERRAIN
+from sim.Environment.Terrain.tree import TREE
 
 
 class EnvironmentLoader:

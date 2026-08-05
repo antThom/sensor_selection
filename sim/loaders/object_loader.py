@@ -3,7 +3,7 @@ Object loader class. This manages all the object loading.
 """
 
 import numpy as np
-from sim.environment.terrain.tree import TREE
+from sim.Environment.Terrain.tree import TREE
 
 
 class ObjectLoader:

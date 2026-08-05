@@ -8,7 +8,8 @@ from sim.loaders.agent_loader import AgentLoader
 from sim.loaders.environment_loader import EnvironmentLoader
 from sim.loaders.object_loader import ObjectLoader
 from sim.loaders.sensor_loader import SensorLoader
-from sim.agent.camera_controls import CameraControls
+from sim.Agent.camera_controls import CameraControls
+from sim.Environment.Thermal.thermal_manager import ThermalManager
 
 from sim.utils.functions import extract_yaml_configurations
 
@@ -27,6 +28,22 @@ class WORLD(ShowBase):
 
         self.agent_list = list()
         self.camera_list = [base.camera]
+
+        thermal_config = yaml_config.get("thermal", {})
+        atmosphere_time = (
+            yaml_config.get("atmosphere", {})
+            .get("time", {})
+            .get("time", 12)
+        )
+        self.thermal_model = ThermalManager(
+            time_of_day=thermal_config.get("time_of_day", atmosphere_time),
+            ambient_K=thermal_config.get(
+                "ambient_temp", yaml_config.get("ambient_temp", 293.0)
+            ),
+            T_sky=thermal_config.get(
+                "sky_temp", yaml_config.get("sky_temp", 260.0)
+            ),
+        )
 
         # Load physics simulation with pybullet
         self.world = BulletWorld()
@@ -48,22 +65,18 @@ class WORLD(ShowBase):
 
         self.object_loader = ObjectLoader(self)
         self.object_loader.load_objects(yaml_config=yaml_config, object_type="static")
-
+        
         self.sensor_loader = SensorLoader(self)
-
-        self.thermal_model = None
 
         self.agent_loader = AgentLoader(yaml_config, self)
         self.agent_loader.load_agents()
 
         # Cameras
         self.camera_controls = CameraControls(self)
-
+        
         # keybind corner
         self.accept("c", self.camera_controls.camera_list_forward)
         self.accept("x", self.camera_controls.camera_list_back)
-        self.accept(
-            "z",
-            self.camera_controls.save_current_camera_image,
-            [self.camera_controls.camera_index],
-        )
+        self.accept("z", self.camera_controls.save_current_camera_image, [self.camera_controls.camera_index])
+        
+        
