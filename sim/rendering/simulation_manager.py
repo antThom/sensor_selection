@@ -2,6 +2,7 @@
 File for the class `SimulationManager`,
 the handler for interfacing and adding objects to panad3d
 """
+
 from typing import Any
 from direct.actor.Actor import Actor
 from direct.showbase.ShowBase import ShowBase
@@ -16,10 +17,10 @@ class SimulationManager:
     TLDR: *I make stuff look and sound pretty :)*
     """
 
-    def __init__(self, show_base:ShowBase):
+    def __init__(self, show_base: ShowBase):
         self.world = show_base
 
-    def generate_simulation_actor(self, object_to_change:Any, config:Any):
+    def generate_simulation_actor(self, object_to_change: Any, config: Any):
         """_summary_
 
         Attaches a Panda3D Actor to the object. Allows object to have animations
@@ -30,7 +31,7 @@ class SimulationManager:
         """
         pass
 
-    def generate_simulation_node(self, object_to_change, model, parent= None):
+    def generate_simulation_node(self, object_to_change, model, parent=None):
         """_summary_
 
         Attaches a Panda3D node to the object. Does not allow object to have animations
@@ -39,25 +40,25 @@ class SimulationManager:
             object (Any): Object to add a non-animatable model to
             kwargs (Any): Additional special settings
         """
-        
+
         object_to_change.object_node = PandaNode(object_to_change.name)
         object_to_change.object_node_path = NodePath(object_to_change.object_node)
-        
+
         try:
             object_to_change.model_node = self.world.loader.loadModel(model)
             object_to_change.model_node_path = NodePath(object_to_change.model_node)
-            object_to_change.model_node_path.reparentTo(object_to_change.object_node_path)
-        except (TypeError) as error:
+            object_to_change.model_node_path.reparentTo(
+                object_to_change.object_node_path
+            )
+        except TypeError as error:
             print("No path for the model was listed. Check your configurations again!")
             raise error
-        
-    
+
     def render_object(self, object):
         if object.parent_node_path is not None:
             object.object_node_path.reparentTo(object.parent_node_path)
         else:
             object.object_node_path.reparentTo(self.world.render)
-
 
     def attach_sound(self, object, config) -> None:
         """_summary_

@@ -21,7 +21,7 @@ class IRCamera(Sensor):
         self.model = "pinhole"
         self.k1 = 0.0
         self.k2 = 0.0
-        self.k3 =  0.0
+        self.k3 = 0.0
         self.k4 = 0.0
         self.near = 0.1
         self.far = 100.0
@@ -30,7 +30,7 @@ class IRCamera(Sensor):
         self.temp_min = 200
         self.temp_max = 350
         self.netd_K = 0.05
-        self.k_atm =  0.05
+        self.k_atm = 0.05
         self.up = [0, 1, 0]
         self.aspect = self._WIDTH / self._HEIGHT
         self.thermal_mgr = thermal_mgr
@@ -120,6 +120,6 @@ class IRCamera(Sensor):
         return img_color
 
     def get_output():
-        """ To Implement by other classes"""
-        
+        """To Implement by other classes"""
+
         raise NotImplementedError

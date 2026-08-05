@@ -4,6 +4,7 @@ import threading
 import time
 import json
 from sim.environment.thermal.thermal_manager import ThermalManager
+
 # from PyQt5.QtCore import Qt, QTimer, QObject, pyqtSignal
 from dataclasses import dataclass
 from typing import Any, Optional, Callable
@@ -11,7 +12,7 @@ from enum import Enum
 
 from sim.utils.functions import set_attr_from_configuration
 
-## Commenting out code that has no use 
+## Commenting out code that has no use
 
 # class FrameSignal(QObject):
 #     new_frame = pyqtSignal(str, object, float)  # (sensor_name, image, timestamp)
@@ -119,7 +120,7 @@ class Sensor(ABC, RenderableObject):
     """_summary_
     The sensor factory class for creating sensors. An abstract method
     """
-    
+
     @abstractmethod
     def __init__(self):
         super().__init__()
@@ -135,8 +136,7 @@ class Sensor(ABC, RenderableObject):
         self.tf = {}
         # self.signals = FrameSignal()
         # self._lock = threading.Lock()
-        
-        
+
         self.agent = None
         self.agent: SensorType = SensorType.EMPTY
 
@@ -148,14 +148,12 @@ class Sensor(ABC, RenderableObject):
     def attach_to_agent(self, agent):
         """_summary_
         Internally attaches a sensor to an agent
-        
+
         Args:
             agent (_type_): _description_
         """
         self.agent = agent
 
-
-        
     # # --------- FIXED-RATE CAPTURE LOOP ----------
     # def start_capture(self, rate_hz=None):
     #     """Begin periodic sampling in a background thread."""
@@ -248,15 +246,15 @@ def load_sensor_from_file(
 class SensorType(Enum):
     """_summary_
     Class for formalizing the types of sensors
-    
+
     Args:
         Enum (_type_): _description_
     """
-    
+
     EMPTY = None
     DUMMY = "dummy"
     CAMERA = "camera"
-    RBGCAMERA = 'rgbcamera'
+    RBGCAMERA = "rgbcamera"
     EOCAMERA = RBGCAMERA
     IRCAMERA = "ircamera"
     MICROPHONE = "microphone"

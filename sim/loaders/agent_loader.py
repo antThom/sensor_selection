@@ -35,9 +35,7 @@ class AgentLoader:
 
             # Set configurations twice: once for the template file and second for the top level config
             set_attr_from_configuration(new_agent, agent_config_file)
-            set_attr_from_configuration(
-                new_agent, self.config["agents"][agent_config]
-            )
+            set_attr_from_configuration(new_agent, self.config["agents"][agent_config])
 
             # load math models somehow somewhere???
             # Find a way to attach agents to the model so that it can update them
@@ -55,10 +53,12 @@ class AgentLoader:
             # load sensors (sensor loader will deal with it)
             for sensor_config in agent_config_file["sensors"]:
                 new_sensor = self.world.sensor_loader.create_sensor(
-                    agent_config_file["sensors"][sensor_config]["type"], 
+                    agent_config_file["sensors"][sensor_config]["type"],
                     agent_config_file["sensors"][sensor_config],
-                    extract_yaml_configurations(agent_config_file["sensors"][sensor_config]["config_path"]))
-
+                    extract_yaml_configurations(
+                        agent_config_file["sensors"][sensor_config]["config_path"]
+                    ),
+                )
 
                 sim_man.generate_simulation_node(new_sensor, new_sensor.model)
                 sim_man.parent_object_models(new_agent, new_sensor)
@@ -73,8 +73,6 @@ class AgentLoader:
             # attach sensor 3d models to the agent
             # Agent is now fully built & set up
             self.world.agent_list.append(new_agent)
-
-
 
     def generate_agent_models(self):
         """For panda3d"""

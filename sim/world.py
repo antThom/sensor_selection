@@ -27,7 +27,6 @@ class WORLD(ShowBase):
 
         self.agent_list = list()
         self.camera_list = [base.camera]
-        
 
         # Load physics simulation with pybullet
         self.world = BulletWorld()
@@ -49,7 +48,7 @@ class WORLD(ShowBase):
 
         self.object_loader = ObjectLoader(self)
         self.object_loader.load_objects(yaml_config=yaml_config, object_type="static")
-        
+
         self.sensor_loader = SensorLoader(self)
 
         self.thermal_model = None
@@ -59,10 +58,12 @@ class WORLD(ShowBase):
 
         # Cameras
         self.camera_controls = CameraControls(self)
-        
+
         # keybind corner
         self.accept("c", self.camera_controls.camera_list_forward)
         self.accept("x", self.camera_controls.camera_list_back)
-        self.accept("z", self.camera_controls.save_current_camera_image, [self.camera_controls.camera_index])
-        
-        
+        self.accept(
+            "z",
+            self.camera_controls.save_current_camera_image,
+            [self.camera_controls.camera_index],
+        )
