@@ -22,7 +22,7 @@ sound:
 animation:
 
 model_configs:
-  model: "assets//Agents//Generic Drone//Generic Quadcopter Drone.obj"
+  model: ".\\assets\\Agents\\Generic Drone\\Generic Quadcopter Drone.obj"
   position: [-0, 10, 50]
   orientation:
   color: [0, 0, 255]

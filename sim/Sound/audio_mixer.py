@@ -1,11 +1,11 @@
-import numpy as np
-import sounddevice as sd
-import soundfile as sf
 import threading
 import time
+
+import numpy as np
+import sounddevice as sd
+
 from sim.Sound.point_source import SoundPointSource
-from sim.utils.CONSTANTS import *
-import pybullet as p
+from sim.utils.CONSTANTS import SIM_DT
 
 
 class AudioMixer:

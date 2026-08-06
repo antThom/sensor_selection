@@ -1,52 +1,73 @@
-# sensor_selection
+# Sensor Selection Simulator
 
-# 🧠 Goal-Seeking Agent Simulation with Ursina, PyBullet, Gym, and PPO
+A Panda3D simulation for evaluating autonomous agents and sensor payloads under
+controlled environmental and thermal conditions. The current scene supports
+agent-mounted RGB and long-wave infrared cameras, a geometry-aware thermal
+render pass, interactive drone movement, and repeatable thermal validation.
 
-This project implements a simple 3D **goal-seeking agent** using:
+## Features
 
-- 🎮 [Ursina](https://www.ursinaengine.org/) for real-time 3D visualization
-- 🔧 [PyBullet](https://pybullet.org/) for physics simulation
-- 🧪 [Gym](https://www.gymlibrary.dev/) for RL-compatible environment API
-- 🤖 [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3) for PPO training
+- Configurable Panda3D terrain, vegetation, atmosphere, sun, and time of day
+- Multiple rendered agents with shared thermal-body behavior
+- Agent-mounted RGB and radiometric IR cameras
+- GPU thermal visualization with emissivity, reflected radiance, atmospheric
+  attenuation, solar exposure, material variation, NETD noise, and palette AGC
+- Ironbow, white-hot, and black-hot IR palettes
+- Live kelvin/Celsius temperature legend in IR mode
+- Deterministic thermal sanity checks with CSV and graph output
+- Keyboard movement and camera switching
 
-The simulation involves a robot agent navigating toward a randomly placed goal using reinforcement learning.
+## Windows setup
 
----
+Python 3.12 is recommended for the pinned scientific and rendering packages.
 
-## 📦 Features
-
-- ✅ Real-time 3D agent movement visualization
-- ✅ Physics-based dynamics via PyBullet
-- ✅ Goal-seeking task with reward shaping
-- ✅ PPO training in the background
-- ✅ Modular code for easy extension (obstacles, sensors, multi-agent)
-
----
-
-## 🚀 Quick Start
-
-```bash
-# Step 1: Clone the repo
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-cd YOUR_REPO_NAME
-
-# Step 2: Create and activate environment
-python -m venv sim_env
-sim_env\Scripts\activate  # On Windows
-
-# Step 3: Install dependencies from PyPI
-pip install -r requirements.txt
+```powershell
+py -3.12 -m venv sim_env
+.\sim_env\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
 ```
 
---
+Run the default mountain scene:
+
+```powershell
+python sensor_selection_simulator.py --config config\scene\mountain_range\scene.yaml
+```
+
+Run validation:
+
+```powershell
+python -m pytest -q
+python sim\Environment\Thermal\thermal_sanity_check.py
+```
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| `W` / `S` | Move the controlled drone forward/backward |
+| `A` / `D` | Move left/right |
+| `Space` / `Shift` | Ascend/descend |
+| Arrow keys | Change heading and pitch |
+| `C` / `X` | Cycle forward/backward through cameras |
+| `Z` | Save the composited camera view to `logs/` |
+
+The default mountain scene includes a sensor-equipped drone and a smaller
+sensorless target drone positioned in its field of view.
 
 ## Documentation
 
-Create a new directory `doxygen` and run doxygen inside of the folder with the provided `Doxyfile`.
+- [Architecture](docs/Architecture.md)
+- [Thermal simulation and IR rendering](docs/ThermalSimulation.md)
+- [Integration history and conflict resolution](docs/IntegrationNotes.md)
+- [Agents](docs/Agents.md)
+- [Environment](docs/Environment.md)
+- [Rendering](docs/Rendering.md)
+- [Sensors](docs/Sensors.md)
 
-```bash
-mkdir doxygen 
-cd doxygen
-doxygen Doxyfile
-```
+## Project status
 
+The thermal solver currently models one bulk temperature per registered object.
+The IR shader adds performant surface-scale visual variation; it is not a
+finite-element heat-transfer or wavelength-resolved detector model. See the
+thermal documentation for equations, assumptions, and interpretation limits.

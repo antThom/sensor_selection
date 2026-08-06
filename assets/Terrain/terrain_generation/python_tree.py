@@ -1,5 +1,6 @@
-from math import sin, cos, pi, tau, atan2, acos
-from pathlib import Path
+import random
+from math import acos, atan2, cos, pi, sin, tau
+
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import (
     Geom,
@@ -13,7 +14,6 @@ from panda3d.core import (
     TextureStage,
     Vec3,
 )
-import random
 
 
 def _add_vertex(vwriter, nwriter, twriter, pos, normal, uv):
@@ -28,6 +28,7 @@ def _make_geom_node(name: str, vdata: GeomVertexData, prim: GeomTriangles) -> No
     node = GeomNode(name)
     node.addGeom(geom)
     return NodePath(node)
+
 
 def make_blob_lobe_z_up(
     radius=0.9,
@@ -62,11 +63,11 @@ def make_blob_lobe_z_up(
 
     # Positions of base octahedron (radius 1)
     base_vertices = [
-        Vec3(1, 0, 0),   # 0
+        Vec3(1, 0, 0),  # 0
         Vec3(-1, 0, 0),  # 1
-        Vec3(0, 1, 0),   # 2
+        Vec3(0, 1, 0),  # 2
         Vec3(0, -1, 0),  # 3
-        Vec3(0, 0, 1),   # 4 top
+        Vec3(0, 0, 1),  # 4 top
         Vec3(0, 0, -1),  # 5 bottom
     ]
 
@@ -76,7 +77,6 @@ def make_blob_lobe_z_up(
         (2, 1, 4),
         (1, 3, 4),
         (3, 0, 4),
-
         (2, 0, 5),
         (1, 2, 5),
         (3, 1, 5),
@@ -95,17 +95,17 @@ def make_blob_lobe_z_up(
         new_faces = []
         mid_cache = {}
 
-        def get_mid_index(i0, i1):
+        def get_mid_index(i0, i1, cache=mid_cache):
             key = tuple(sorted((i0, i1)))
-            if key in mid_cache:
-                return mid_cache[key]
+            if key in cache:
+                return cache[key]
             p = midpoint(vertices[i0], vertices[i1])
             # Normalize to roughly spherical shape
             if p.length_squared() > 0:
                 p.normalize()
             idx = len(vertices)
             vertices.append(p)
-            mid_cache[key] = idx
+            cache[key] = idx
             return idx
 
         for f in faces:
@@ -129,7 +129,7 @@ def make_blob_lobe_z_up(
             p.normalize()
         # Random radial noise
         noise = random.uniform(-noise_amplitude, noise_amplitude)
-        p *= (radius + noise)
+        p *= radius + noise
         vertices[i] = p
 
     # --- 4) Add vertices to GeomVertexData ---
@@ -143,7 +143,7 @@ def make_blob_lobe_z_up(
 
     # We first build triangles, but also accumulate normals per vertex,
     # then normalize them afterwards for smooth shading.
-    # For a harder, faceted look, you’d duplicate vertices per face instead.
+    # For a harder, faceted look, duplicate vertices per face instead.
 
     # Temporary normal accumulator
     accum_normals = [Vec3(0, 0, 0) for _ in vertices]
@@ -201,6 +201,7 @@ def make_blob_lobe_z_up(
     node.addGeom(geom)
     return NodePath(node)
 
+
 def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
     fmt = GeomVertexFormat.getV3n3t2()
     vdata = GeomVertexData("trunk", fmt, Geom.UHStatic)
@@ -244,10 +245,12 @@ def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
         idx = vdata.getNumRows()
         bottom_ring.append(idx)
         _add_vertex(
-            vwriter, nwriter, twriter,
+            vwriter,
+            nwriter,
+            twriter,
             (x, y, 0.0),
             Vec3(0, 0, -1),
-            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a))
+            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a)),
         )
 
     for i in range(sides):
@@ -256,7 +259,9 @@ def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
 
     # Top cap
     top_center = vdata.getNumRows()
-    _add_vertex(vwriter, nwriter, twriter, (0.0, 0.0, height), Vec3(0, 0, 1), (0.5, 0.5))
+    _add_vertex(
+        vwriter, nwriter, twriter, (0.0, 0.0, height), Vec3(0, 0, 1), (0.5, 0.5)
+    )
 
     top_ring = []
     for i in range(sides + 1):
@@ -265,10 +270,12 @@ def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
         idx = vdata.getNumRows()
         top_ring.append(idx)
         _add_vertex(
-            vwriter, nwriter, twriter,
+            vwriter,
+            nwriter,
+            twriter,
             (x, y, height),
             Vec3(0, 0, 1),
-            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a))
+            (0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a)),
         )
 
     for i in range(sides):
@@ -276,6 +283,7 @@ def make_low_poly_cylinder(radius=0.15, height=1.2, sides=6) -> NodePath:
         prim.closePrimitive()
 
     return _make_geom_node("trunk_geom", vdata, prim)
+
 
 def make_low_poly_cone(radius=0.85, height=1.7, sides=8) -> NodePath:
     fmt = GeomVertexFormat.getV3n3t2()
@@ -313,6 +321,7 @@ def make_low_poly_cone(radius=0.85, height=1.7, sides=8) -> NodePath:
 
     return _make_geom_node("canopy_geom", vdata, prim)
 
+
 def make_realistic_trunk(
     radius_bottom=0.15,
     radius_top=0.08,
@@ -341,7 +350,7 @@ def make_realistic_trunk(
     def trunk_center_at(t):
         # z is height, x has a small quadratic bend
         z = t * height
-        x = bend_strength * (t ** 2)  # bend towards +X
+        x = bend_strength * (t**2)  # bend towards +X
         y = 0.0
         return Vec3(x, y, z)
 
@@ -422,9 +431,10 @@ def make_realistic_trunk(
     node.addGeom(geom)
     return NodePath(node)
 
+
 def make_canopy_lobe(radius=0.9, height=1.0, sides=8) -> NodePath:
     """
-    Single low-poly cone, like your original, but we’ll use several of these as lobes.
+    Single low-poly cone; several instances form the canopy lobes.
     """
     fmt = GeomVertexFormat.getV3n3t2()
     vdata = GeomVertexData("canopy_lobe", fmt, Geom.UHStatic)
@@ -471,6 +481,7 @@ def make_canopy_lobe(radius=0.9, height=1.0, sides=8) -> NodePath:
     node.addGeom(geom)
     return NodePath(node)
 
+
 def make_clustered_canopy(
     base_radius=0.9,
     base_height=1.2,
@@ -485,7 +496,7 @@ def make_clustered_canopy(
     """
     root = NodePath("clustered_canopy")
 
-    for i in range(lobes):
+    for _lobe_index in range(lobes):
         lobe = make_canopy_lobe(radius=base_radius, height=base_height, sides=sides)
 
         # Random horizontal offset
@@ -505,11 +516,14 @@ def make_clustered_canopy(
         lobe.setH(random.uniform(0, 360))
 
         # Position lobe
-        lobe.setPos(dx, dy, dz)  # note: trunk's Y is height; here Z is sideways if trunk uses Y-up
+        lobe.setPos(
+            dx, dy, dz
+        )  # note: trunk's Y is height; here Z is sideways if trunk uses Y-up
 
         lobe.reparentTo(root)
 
     return root
+
 
 def make_clustered_blob_canopy_z_up(
     base_radius=0.9,
@@ -554,13 +568,14 @@ def make_clustered_blob_canopy_z_up(
 
     return root
 
-class LowPolyTree():
+
+class LowPolyTree:
     def __init__(
         self,
         trunk_radius_bottom=0.15,
         trunk_radius_top=0.08,
         trunk_height=1.5,
-        trunk_sides = 8,
+        trunk_sides=8,
         canopy_radius=0.9,
         canopy_height=1.4,
         canopy_lobes=4,
@@ -575,7 +590,7 @@ class LowPolyTree():
             sides=trunk_sides,
             bend_strength=0.1,
         )
-        
+
         self.canopy = make_clustered_blob_canopy_z_up(
             base_radius=canopy_radius,
             base_height=canopy_height,
@@ -624,6 +639,7 @@ class LowPolyTree():
         self.root.reparentTo(parent)
         return self.root
 
+
 class VISUAL(ShowBase):
     def __init__(self, tree_np: NodePath):
         ShowBase.__init__(self)
@@ -656,14 +672,14 @@ if __name__ == "__main__":
         canopy_radius=5.0,
         canopy_height=8.3,
         canopy_lobes=50,
-        canopy_subdivisions = 10
+        canopy_subdivisions=10,
     )
     tree.set_trunk_color(0.45, 0.25, 0.12, 1.0)
     tree.set_canopy_color(0.15, 0.45, 0.15, 1.0)
     tree.root.flattenStrong()
     app = VISUAL(tree.root)
     app.run()
-    
+
     # tree.root.flattenStrong()
     # filename = Path("generation","Terrain_Generation","terrain_features","quick_tree.bam")
     # tree.root.writeBamFile(filename)

@@ -3,7 +3,8 @@ Object loader class. This manages all the object loading.
 """
 
 import numpy as np
-from sim.Environment.Terrain.tree import TREE
+
+from sim.environment.terrain.tree import TREE
 
 
 class ObjectLoader:
@@ -29,7 +30,7 @@ class ObjectLoader:
         self.static_object = {}
         # stat_obj = STATIC_OBJECT(self.loader)
 
-        for key in object_dict.keys():
+        for key in object_dict:
             if key == "trees":
                 tree_types = len(object_dict[key].get("obj_path", []))
                 min_point, max_point = self.world.terrain.object.getTightBounds()
@@ -40,7 +41,7 @@ class ObjectLoader:
                         pos_type=object_dict[key].get("obj_pos"),
                     )
                     num_trees = object_dict[key].get("obj_number")[ii]
-                    for jj in np.arange(
+                    for _tree_index in np.arange(
                         num_trees
                     ):  # This should absolutely not work but it does
                         # tree = self.trees.object.instanceTo(self.render)
@@ -58,3 +59,4 @@ class ObjectLoader:
                             position.append(z)
                         tree.setPos(*position)
                         tree.setScale(*object_dict[key].get("obj_scale"))
+                        self.static_object.setdefault("trees", []).append(tree)

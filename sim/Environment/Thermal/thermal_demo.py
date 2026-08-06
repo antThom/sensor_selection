@@ -4,7 +4,6 @@ import math
 import sys
 from pathlib import Path
 
-
 args = sys.argv[1:]
 root = Path(__file__).resolve().parents[3]
 if str(root) not in sys.path:
@@ -12,16 +11,29 @@ if str(root) not in sys.path:
 
 try:
     import pybullet as p
-    from ursina import AmbientLight, DirectionalLight, Entity, Sky, Text, Ursina
-    from ursina import Vec3, camera, clamp, color, held_keys, mouse, time, window
+    from ursina import (
+        AmbientLight,
+        DirectionalLight,
+        Entity,
+        Sky,
+        Text,
+        Ursina,
+        Vec3,
+        camera,
+        clamp,
+        color,
+        held_keys,
+        mouse,
+        time,
+        window,
+    )
     from ursina.shaders import lit_with_shadows_shader
 except ImportError as error:
     raise SystemExit(
         "Install the demo dependencies with: pip install -r requirements.txt"
     ) from error
 
-from sim.Environment.Thermal.thermal_static_object import ThermalStaticObject
-
+from sim.environment.Thermal.thermal_static_object import ThermalStaticObject
 
 demo = None
 
@@ -181,8 +193,7 @@ class ThermalDemo:
         cold = (57, 118, 153)
         hot = (210, 74, 58)
         rgb = [
-            int(cold[index] + amount * (hot[index] - cold[index]))
-            for index in range(3)
+            int(cold[index] + amount * (hot[index] - cold[index])) for index in range(3)
         ]
         self.cube_view.color = color.rgb(*rgb)
 

@@ -1,28 +1,24 @@
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletWorld
 from panda3d.core import Vec3
-import yaml
 
-from sim.rendering.simulation_manager import SimulationManager
+from sim.agent.camera_controls import CameraControls
+from sim.agent.drone_controls import DroneControls
+from sim.environment.thermal.thermal_manager import ThermalManager
 from sim.loaders.agent_loader import AgentLoader
 from sim.loaders.environment_loader import EnvironmentLoader
 from sim.loaders.object_loader import ObjectLoader
 from sim.loaders.sensor_loader import SensorLoader
-from sim.Agent.camera_controls import CameraControls
-from sim.Environment.Thermal.thermal_manager import ThermalManager
-
+from sim.rendering.simulation_manager import SimulationManager
 from sim.utils.functions import extract_yaml_configurations
 
 
 class WORLD(ShowBase):
-    """
-    Overall manager for the simulation. Derives from Panda3D's `ShowBase` class.
-    Calling point for objects of the simulation.
-    """
+    """Top-level owner of scene, physics, thermal, agent, and camera systems."""
 
     def __init__(self, config_file):
 
-        ShowBase.__init__(self)
+        super().__init__()
 
         yaml_config = extract_yaml_configurations(config_file)
 
@@ -65,7 +61,7 @@ class WORLD(ShowBase):
 
         self.object_loader = ObjectLoader(self)
         self.object_loader.load_objects(yaml_config=yaml_config, object_type="static")
-        
+
         self.sensor_loader = SensorLoader(self)
 
         self.agent_loader = AgentLoader(yaml_config, self)
@@ -73,10 +69,9 @@ class WORLD(ShowBase):
 
         # Cameras
         self.camera_controls = CameraControls(self)
-        
+        self.drone_controls = DroneControls(self)
+
         # keybind corner
         self.accept("c", self.camera_controls.camera_list_forward)
         self.accept("x", self.camera_controls.camera_list_back)
-        self.accept("z", self.camera_controls.save_current_camera_image, [self.camera_controls.camera_index])
-        
-        
+        self.accept("z", self.camera_controls.save_current_camera_image)

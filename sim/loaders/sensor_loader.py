@@ -3,7 +3,7 @@
 from panda3d.core import Camera as PandaCamera
 from panda3d.core import PerspectiveLens
 
-from sim.Sensors.sensor import Sensor, SensorType
+from sim.sensors.sensor import Sensor, SensorType
 
 
 class SensorLoader:
@@ -17,17 +17,17 @@ class SensorLoader:
         normalized = str(sensor_type).strip().lower().replace(" ", "_")
 
         if normalized in {"ir_camera", "ircamera"}:
-            from sim.Sensors.Cameras.ir_camera import IRCamera
+            from sim.sensors.cameras.ir_camera import IRCamera
 
             sensor = IRCamera(thermal_manager=self.world.thermal_model)
             expected_type = SensorType.IRCAMERA
         elif normalized in {"eo_camera", "rgb_camera", "rgbcamera"}:
-            from sim.Sensors.Cameras.eo_camera import EOCamera
+            from sim.sensors.cameras.eo_camera import EOCamera
 
             sensor = EOCamera()
             expected_type = SensorType.EOCAMERA
         elif normalized == "dummy":
-            from sim.Sensors.dummy_sensor import DummySensor
+            from sim.sensors.dummy_sensor import DummySensor
 
             sensor = DummySensor()
             expected_type = SensorType.DUMMY
@@ -59,7 +59,13 @@ class SensorLoader:
             camera_parent = self.world.render
 
         sensor.camera_nodepath = camera_parent.attachNewNode(sensor.camera_node)
-        mount_position = list(getattr(sensor, "mount_position", [0.0, 0.0, 0.0]))
+        mount_position = list(
+            getattr(
+                sensor,
+                "mount_position",
+                getattr(sensor, "camera_offset", [0.0, 0.0, 0.0]),
+            )
+        )
         if (
             getattr(sensor, "mount_mode", "absolute") == "model_bounds"
             and sensor.agent is not None
@@ -71,7 +77,12 @@ class SensorLoader:
                 for axis in range(3)
             ]
         sensor.camera_nodepath.setPos(*mount_position)
-        sensor.camera_nodepath.setHpr(*getattr(sensor, "mount_hpr", [0.0, 0.0, 0.0]))
+        mount_hpr = getattr(
+            sensor,
+            "mount_hpr",
+            getattr(sensor, "camera_angle", [0.0, 0.0, 0.0]),
+        )
+        sensor.camera_nodepath.setHpr(*mount_hpr)
 
         sensor.display_region = self.world.win.makeDisplayRegion()
         sensor.display_region.setCamera(sensor.camera_nodepath)
@@ -92,6 +103,8 @@ class SensorLoader:
             lens.setFocalLength(float(focal_length))
 
         sensor.camera_node.setLens(lens)
+        if sensor.type is SensorType.IRCAMERA:
+            sensor.setup_live_thermal_view(self.world)
         self.world.camera_list.append(sensor)
         return sensor
 

@@ -1,10 +1,6 @@
-from panda3d.core import Point3
-from panda3d.core import Texture
-from panda3d.core import TextureStage
-from panda3d.core import TexGenAttrib
 from pathlib import Path
-import numpy as np
-from sim.Environment.static_object import STATIC_OBJECT
+
+from sim.environment.static_object import STATIC_OBJECT
 
 
 class TREE(STATIC_OBJECT):

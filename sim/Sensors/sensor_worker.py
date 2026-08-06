@@ -1,6 +1,6 @@
 import threading
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from .latest_value import LatestValue
 
@@ -25,7 +25,7 @@ class SensorWorker:
         self.catch_exceptions = bool(catch_exceptions)
 
         self._stop_evt = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
