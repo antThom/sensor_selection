@@ -1,35 +1,36 @@
-# General-purpose long-wave infrared camera.
-# Units: temperatures K, FOV degrees, wavelength um, pitch um, focal length mm.
-name: "General IR Camera"
+# Teledyne FLIR Hadron 640R radiometric thermal channel.
+# Model 70640AS32-6PMRXX. The Hadron also contains a visible-light camera;
+# this configuration represents its IR channel only.
+name: "FLIR Hadron 640R"
 type: "ir_camera"
-manufacturer: "Generic"
-model_name: "Generic LWIR"
-model_number: "generic-lwir"
-detector_type: "Uncooled microbolometer"
+manufacturer: "Teledyne FLIR"
+model_name: "Hadron 640R"
+model_number: "70640AS32-6PMRXX"
+detector_type: "Uncooled VOx microbolometer"
 radiometric: true
 
 detector:
   width: 640
   height: 512
-  frame_rate_hz: 30.0
+  frame_rate_hz: 60.0
   pixel_pitch_um: 12.0
-  ifov_mrad: 1.304
+  ifov_mrad: 0.882
   spectral_band_um: [8.0, 14.0]
-  netd_K: 0.050
+  netd_K: 0.040
   temperature_accuracy_K: 5.0
-  temperature_range_K: [233.15, 423.15]
+  temperature_range_K: [233.15, 413.15]
   gain_mode: "high"
   nuc_mode: "factory"
 
 optics:
   camera_model: "pinhole"
-  horizontal_fov_deg: 50.0
-  vertical_fov_deg: 40.0
-  focal_length_mm: 9.2
+  horizontal_fov_deg: 32.0
+  vertical_fov_deg: 25.6
+  focal_length_mm: 13.6
   f_number: 1.0
   digital_zoom: 1.0
   near: 0.1
-  far: 1000.0
+  far: 12000.0
 
 radiometry:
   emissivity: 0.95
@@ -42,16 +43,14 @@ output:
   output: "thermal_image"
   encode: "ir"
   palette: "ironbow"
-  noise_seed: 0
+  noise_seed: 6400
 
 mount:
-  # Fractions of the owning model's X/Y/Z bounds. Y=1.02 places the optical
-  # origin just beyond the front of the model and avoids rendering its body.
   mount_mode: "model_bounds"
   mount_position: [0.5, 1.02, 0.5]
   mount_hpr: [0.0, -20.0, 0.0]
-  mass_g: 10.0
-  power_consumption_W: 1.0
+  mass_g: 56.0
+  power_consumption_W: 1.8
 
 model_configs:
   model: ""
