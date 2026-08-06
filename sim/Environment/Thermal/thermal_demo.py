@@ -33,7 +33,7 @@ except ImportError as error:
         "Install the demo dependencies with: pip install -r requirements.txt"
     ) from error
 
-from sim.Environment.Thermal.thermal_static_object import ThermalStaticObject
+from sim.environment.Thermal.thermal_static_object import ThermalStaticObject
 
 demo = None
 
@@ -66,7 +66,9 @@ class FlyCamera(Entity):
         )
         if move.length() > 0:
             boost = 2.0 if held_keys["shift"] else 1.0
-            self.position += move.normalized() * self.speed * boost * time.dt
+            self.position += (
+                move.normalized() * self.speed * boost * time.dt
+            )
 
     def input(self, key):
         if key == "tab":
@@ -135,7 +137,9 @@ class ThermalDemo:
         )
         self.sunlight = DirectionalLight(shadows=True)
         self.sunlight.look_at(Vec3(-0.45, -0.84, 0.30))
-        self.ambient_light = AmbientLight(color=color.rgba(105, 116, 128, 255))
+        self.ambient_light = AmbientLight(
+            color=color.rgba(105, 116, 128, 255)
+        )
         FlyCamera()
 
         self.readout = Text(
@@ -156,7 +160,7 @@ class ThermalDemo:
             float(elapsed) * self.options.time_scale,
             0.0,
         )
-        steps = max(1, math.ceil(simulation_dt / 2.0))
+        steps = max(1, int(math.ceil(simulation_dt / 2.0)))
         step_dt = simulation_dt / steps
         for _ in range(steps):
             shade = self.cube.sunlight(self.sun_direction)
@@ -200,7 +204,9 @@ class ThermalDemo:
 
 def main():
     global demo
-    parser = argparse.ArgumentParser(description="Panda3D/PyBullet thermal cube demo")
+    parser = argparse.ArgumentParser(
+        description="Panda3D/PyBullet thermal cube demo"
+    )
     parser.add_argument(
         "--wind",
         type=float,

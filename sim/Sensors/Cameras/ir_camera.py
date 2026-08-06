@@ -366,6 +366,14 @@ class IRCamera(Camera):
                 "last_temperature": None,
             }
         )
+        
+        # This piece of code was mysteriously put here for an unknown reason...and returned errors
+        # Thus, it's commented out
+        
+        # channels = [
+        #     np.interp(normalized, stops, colors[:, channel]) for channel in range(3)
+        # ]
+        # return np.rint(np.stack(channels, axis=-1)).astype(np.uint8)
 
     def refresh_live_thermal_colors(self):
         """Refresh cheap per-object and per-frame GPU shader inputs."""

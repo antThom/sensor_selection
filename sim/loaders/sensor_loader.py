@@ -22,12 +22,12 @@ class SensorLoader:
             sensor = IRCamera(thermal_manager=self.world.thermal_model)
             expected_type = SensorType.IRCAMERA
         elif normalized in {"eo_camera", "rgb_camera", "rgbcamera"}:
-            from sim.sensors.Cameras.eo_camera import EOCamera
+            from sim.sensors.cameras.eo_camera import EOCamera
 
             sensor = EOCamera()
             expected_type = SensorType.EOCAMERA
         elif normalized == "dummy":
-            from sim.eensors.dummy_sensor import DummySensor
+            from sim.sensors.dummy_sensor import DummySensor
 
             sensor = DummySensor()
             expected_type = SensorType.DUMMY

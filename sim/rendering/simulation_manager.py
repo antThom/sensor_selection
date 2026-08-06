@@ -1,4 +1,7 @@
-"""Panda3D node construction and parenting helpers."""
+"""
+File for the class `SimulationManager`,
+the handler for interfacing and adding objects to panad3d
+"""
 
 from typing import Any
 
@@ -24,10 +27,15 @@ class SimulationManager:
             object_to_change.model_node_path = None
             return object_to_change.object_node_path
 
-        object_to_change.model_node = self.world.loader.loadModel(model)
-        object_to_change.model_node_path = NodePath(object_to_change.model_node)
-        object_to_change.model_node_path.reparentTo(object_to_change.object_node_path)
-        return object_to_change.object_node_path
+        try:
+            object_to_change.model_node = self.world.loader.loadModel(model)
+            object_to_change.model_node_path = NodePath(object_to_change.model_node)
+            object_to_change.model_node_path.reparentTo(
+                object_to_change.object_node_path
+            )
+        except TypeError as error:
+            print("No path for the model was listed. Check your configurations again!")
+            raise error
 
     def render_object(self, object):
         """Attach an object's transform root to its parent or the world root."""
@@ -35,6 +43,15 @@ class SimulationManager:
             object.object_node_path.reparentTo(object.parent_node_path)
         else:
             object.object_node_path.reparentTo(self.world.render)
+
+    def attach_sound(self, object, config) -> None:
+        """_summary_
+        Attaches the sound system to an object and configures it. Edits their attributes in order to add it to the sound system
+
+        Args:
+            object (_type_): _description_
+            config (_type_): _description_
+        """
 
     def parent_object_models(self, parent, child) -> None:
         """Parent a child simulation object to another object's root."""
