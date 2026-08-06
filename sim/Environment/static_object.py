@@ -1,24 +1,23 @@
-from panda3d.core import Point3
-from panda3d.core import Texture
-from panda3d.core import TextureStage
-from panda3d.core import TexGenAttrib
-from panda3d.core import (
-    CollisionRay,
-    CollisionNode,
-    CollisionTraverser,
-    CollisionHandlerQueue,
-    BitMask32,
-)
-from sim.utils.object import OBJECT
-from pathlib import Path
 import numpy as np
+from panda3d.core import (
+    BitMask32,
+    CollisionHandlerQueue,
+    CollisionNode,
+    CollisionRay,
+    CollisionTraverser,
+    TexGenAttrib,
+    Texture,
+    TextureStage,
+)
+
+from sim.utils.object import OBJECT
 
 
 class STATIC_OBJECT(OBJECT):
     def __init__(self, loader=None, gen_type=None):
         OBJECT.__init__(self, loader=loader, gen_type=gen_type)
 
-    def _set_texture(self, texture_path: str = None, scale: list = None):
+    def _set_texture(self, texture_path: str | None = None, scale: list | None = None):
         self.tex = self.loader.loadTexture(str(texture_path))
         self.tex.setWrapU(Texture.WM_repeat)
         self.tex.setWrapV(Texture.WM_repeat)
@@ -33,9 +32,9 @@ class STATIC_OBJECT(OBJECT):
 
     def _set_position(
         self,
-        pos: str = None,
+        pos: str | None = None,
         N: int = 1,
-        pos_val: np.ndarray = None,
+        pos_val: np.ndarray | None = None,
         terrain=None,
         render=None,
     ):
@@ -78,15 +77,17 @@ class STATIC_OBJECT(OBJECT):
                 rayQueue=self.rayQueue,
             )
             if z is None:
-                pass
+                return
 
             self.object.instanceTo(render)
             self.object.setPos(position[0], position[1], z)
             self.object.show()
         else:
-            pass
+            return
 
-    def _transform_terrain(self, pos: str = None, scale: np.ndarray = None):
+    def _transform_terrain(
+        self, pos: str | None = None, scale: np.ndarray | None = None
+    ):
         self._set_scale(scale)
 
         if pos == "center":

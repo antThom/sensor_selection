@@ -1,113 +1,126 @@
-"""File for holding the SensorLoader class and its utilities"""
+"""Construction and Panda3D setup for agent-mounted sensors."""
 
-from sim.sensors.sensor import SensorType, Sensor
-from panda3d.core import PandaNode, NodePath
+from panda3d.core import Camera as PandaCamera
+from panda3d.core import PerspectiveLens
+
+from sim.sensors.sensor import Sensor, SensorType
 
 
 class SensorLoader:
-    """_summary_
-
-    Loader for creating and intializing sensors based on configurations.
-    Mostly works as an object generator for AgentLoader
-    """
+    """Create configured sensors and connect their render resources."""
 
     def __init__(self, world):
         self.world = world
 
-    def create_sensor(self, type, *args, **kwargs):
-        """_summary_
-        Given a set of configurations, will generate a sensor object. All extra args will be applied first to last.
-        Returns:
-            _type_: _description_
-        """
-        sensor = None
+    def create_sensor(self, sensor_type, *configurations):
+        """Instantiate and configure one supported sensor type."""
+        normalized = str(sensor_type).strip().lower().replace(" ", "_")
 
-        # See design pattern "Strategy"
-        # Ensure you set the type so internals are able to react to ernumerators
-        match type:
-            case "IR Camera":
-                pass
-            case "RGB Camera":
-                pass
-            case "RBGS Camera":
-                pass
-            case "Microphone":
-                pass
-            case "dummy":
-                from sim.sensors.dummy_sensor import DummySensor
+        if normalized in {"ir_camera", "ircamera"}:
+            from sim.sensors.cameras.ir_camera import IRCamera
 
-                sensor = DummySensor()
-                sensor.set_configs(args)
-                sensor.type = SensorType.DUMMY
-            case "eo_camera":
-                from sim.sensors.cameras.eo_camera import EOCamera
+            sensor = IRCamera(thermal_manager=self.world.thermal_model)
+            expected_type = SensorType.IRCAMERA
+        elif normalized in {"eo_camera", "rgb_camera", "rgbcamera"}:
+            from sim.sensors.Cameras.eo_camera import EOCamera
 
-                sensor = EOCamera()
-                sensor.set_configs(args)
-                sensor.type = SensorType.EOCAMERA
-                
+            sensor = EOCamera()
+            expected_type = SensorType.EOCAMERA
+        elif normalized == "dummy":
+            from sim.eensors.dummy_sensor import DummySensor
 
+            sensor = DummySensor()
+            expected_type = SensorType.DUMMY
+        else:
+            raise ValueError(f"unsupported sensor type: {sensor_type!r}")
 
-            case _:
-                pass
-                # Nothing matched, raise an error
-
+        sensor.set_configs(configurations)
+        # YAML contains a string type field; retain the internal enum after
+        # applying all configuration sources.
+        sensor.type = expected_type
+        if expected_type is SensorType.IRCAMERA:
+            sensor.validate_parameters()
         return sensor
 
     def setup_sensor(self, sensor: Sensor):
-        match sensor.type:
-            case SensorType.EOCAMERA:
-                # case "eo_camera":
-                self.setupEOCamera(sensor)
+        """Allocate Panda3D resources required by a configured sensor."""
+        if sensor.type in {SensorType.EOCAMERA, SensorType.IRCAMERA}:
+            self.setup_camera(sensor)
 
-    def setupEOCamera(self, sensor: Sensor):
-        """_summary_
-        Sets up and unboxes all the backend required to create sensors.
-        Call on an instianiated camera to initialize it.
+    def setup_camera(self, sensor: Sensor):
+        """Create a selectable scene camera mounted to the owning agent."""
+        sensor.camera_node = PandaCamera(f"{sensor.name}_camera")
 
-        Args:
-            sensor (_type_): _description_
-            world (_type_): _description_
-        """
-        from panda3d.core import PerspectiveLens, Camera
-        import sim.rendering.simulation_manager
-        
-    
-        sensor.camera_node = Camera(f"{sensor.name}_camera")
-        sensor.camera_nodepath = NodePath(sensor.camera_node)
-        sensor.camera_nodepath.reparentTo(sensor.object_node_path)
-        
+        if sensor.agent is not None and sensor.agent.object_node_path is not None:
+            camera_parent = sensor.agent.object_node_path
+        elif sensor.object_node_path is not None:
+            camera_parent = sensor.object_node_path
+        else:
+            camera_parent = self.world.render
+
+        sensor.camera_nodepath = camera_parent.attachNewNode(sensor.camera_node)
+        mount_position = list(
+            getattr(
+                sensor,
+                "mount_position",
+                getattr(sensor, "camera_offset", [0.0, 0.0, 0.0]),
+            )
+        )
+        if (
+            getattr(sensor, "mount_mode", "absolute") == "model_bounds"
+            and sensor.agent is not None
+            and sensor.agent.model_node is not None
+        ):
+            lower, upper = sensor.agent.model_node.getTightBounds()
+            mount_position = [
+                lower[axis] + float(mount_position[axis]) * (upper[axis] - lower[axis])
+                for axis in range(3)
+            ]
+        sensor.camera_nodepath.setPos(*mount_position)
+        mount_hpr = getattr(
+            sensor,
+            "mount_hpr",
+            getattr(sensor, "camera_angle", [0.0, 0.0, 0.0]),
+        )
+        sensor.camera_nodepath.setHpr(*mount_hpr)
+
         sensor.display_region = self.world.win.makeDisplayRegion()
         sensor.display_region.setCamera(sensor.camera_nodepath)
         sensor.display_region.setActive(False)
-        # Always force default display region and camera
-        # Disabling all views means that default camera will remain.
         sensor.display_region.setSort(5)
-        sensor.camera_nodepath.setPos(sensor.camera_offset[0], sensor.camera_offset[1], sensor.camera_offset[2])
-        sensor.camera_nodepath.setHpr(sensor.camera_angle[0], sensor.camera_angle[1], sensor.camera_angle[2])
-        # Lens Configuration
+        sensor.display_region.setClearDepthActive(True)
+        sensor.display_region.setClearColorActive(True)
+        sensor.display_region.setClearColor((0.02, 0.02, 0.02, 1.0))
+
         lens = PerspectiveLens()
+        horizontal_fov = float(getattr(sensor, "horizontal_fov_deg", sensor.fov))
+        vertical_fov = float(getattr(sensor, "vertical_fov_deg", horizontal_fov))
+        lens.setFov(horizontal_fov, vertical_fov)
+        lens.setNearFar(float(sensor.near), float(sensor.far))
 
-        lens.setFov(sensor.fov)
-        lens.setAspectRatio(sensor.aspect)
-        lens.setNear(sensor.near)
-        lens.setFar(sensor.far)
-        lens.setFilmSize(sensor.WIDTH, sensor.HEIGHT)
-
-        if sensor.focal_length is not None:
-            lens.setFocalLength(sensor.focal_length)
+        focal_length = getattr(sensor, "focal_length", None)
+        if focal_length is not None:
+            lens.setFocalLength(float(focal_length))
 
         sensor.camera_node.setLens(lens)
-        sensor.model_node_path.setTwoSided(True)
-
+        if sensor.type is SensorType.IRCAMERA:
+            sensor.setup_live_thermal_view(self.world)
         self.world.camera_list.append(sensor)
+        return sensor
+
+    # Compatibility alias for existing callers.
+    setupEOCamera = setup_camera
 
     def register_sensor(self, sensor):
-        pass
+        return sensor
 
     def attach_sensor_to_model(self, sensor, model):
-        pass
+        sensor.attach_to_agent(model)
+        return sensor
 
-    def update_sensors(sensor_list: list):
+    @staticmethod
+    def update_sensors(sensor_list):
         for sensor in sensor_list:
-            sensor.update()
+            update = getattr(sensor, "update", None)
+            if update is not None:
+                update()

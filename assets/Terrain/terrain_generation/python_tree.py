@@ -1,5 +1,6 @@
-from math import sin, cos, pi, tau, atan2, acos
-from pathlib import Path
+import random
+from math import acos, atan2, cos, pi, sin, tau
+
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import (
     Geom,
@@ -13,7 +14,6 @@ from panda3d.core import (
     TextureStage,
     Vec3,
 )
-import random
 
 
 def _add_vertex(vwriter, nwriter, twriter, pos, normal, uv):
@@ -95,17 +95,17 @@ def make_blob_lobe_z_up(
         new_faces = []
         mid_cache = {}
 
-        def get_mid_index(i0, i1):
+        def get_mid_index(i0, i1, cache=mid_cache):
             key = tuple(sorted((i0, i1)))
-            if key in mid_cache:
-                return mid_cache[key]
+            if key in cache:
+                return cache[key]
             p = midpoint(vertices[i0], vertices[i1])
             # Normalize to roughly spherical shape
             if p.length_squared() > 0:
                 p.normalize()
             idx = len(vertices)
             vertices.append(p)
-            mid_cache[key] = idx
+            cache[key] = idx
             return idx
 
         for f in faces:
@@ -143,7 +143,7 @@ def make_blob_lobe_z_up(
 
     # We first build triangles, but also accumulate normals per vertex,
     # then normalize them afterwards for smooth shading.
-    # For a harder, faceted look, you’d duplicate vertices per face instead.
+    # For a harder, faceted look, duplicate vertices per face instead.
 
     # Temporary normal accumulator
     accum_normals = [Vec3(0, 0, 0) for _ in vertices]
@@ -434,7 +434,7 @@ def make_realistic_trunk(
 
 def make_canopy_lobe(radius=0.9, height=1.0, sides=8) -> NodePath:
     """
-    Single low-poly cone, like your original, but we’ll use several of these as lobes.
+    Single low-poly cone; several instances form the canopy lobes.
     """
     fmt = GeomVertexFormat.getV3n3t2()
     vdata = GeomVertexData("canopy_lobe", fmt, Geom.UHStatic)
@@ -496,7 +496,7 @@ def make_clustered_canopy(
     """
     root = NodePath("clustered_canopy")
 
-    for i in range(lobes):
+    for _lobe_index in range(lobes):
         lobe = make_canopy_lobe(radius=base_radius, height=base_height, sides=sides)
 
         # Random horizontal offset

@@ -1,35 +1,30 @@
 import numpy as np
-import os
-import pybullet as p
 
-# # import pybullet_data
-from pathlib import Path
-from scipy.spatial.transform import Rotation as Rot
-from sim.environment.ThermalObject.ThermalObject import ThermalObject
-from sim.utils.CONSTANTS import *
-
-from sim.environment.ThermalObject.ThermalObject import ThermalObject
+from sim.environment.ThermalObject import ThermalBody
 from sim.rendering.object import RenderableObject
 
 
-class Agent(RenderableObject):
-    def __init__(self):
-        super().__init__()
+class Agent(ThermalBody, RenderableObject):
+    """Rendered autonomous platform with sensors and a managed thermal body."""
 
-        """
-        Most of these variables contained here are class defaults
-        All of these will be configured by the `AgentLoader` classlater and through its
-        intermediates and helpers
-        """
+    def __init__(self, thermal_manager=None):
+        super().__init__(thermal_manager=thermal_manager)
 
-        self.sensor_list = list()
-        self.model_list = list()
+        # Position and orientation are inherited from RenderableObject. The
+        # remaining dynamics fields are agent-specific and retain array shapes
+        # expected by the microphone and control integrations.
+        self.agent_id = None
+        self.velocity = np.zeros((3, 1))
+        self.angular_rates = np.zeros((3, 1))
+        self.mass = 1.0
+        self.inertia = np.eye(3)
+        self.tf = {}
+        self.max_vel = 1.0
+        self.sensor_list = []
+        self.model_list = []
 
-        # Math 
-        # TODO: Need to intergrate pybullet for phyics and math
-        
     def get_id(self):
-        return self.agent_id
+        return getattr(self, "agent_id", None)
 
     """
     The add_* functions will have magic configuration. They will sort through almost anything and find what they're looking for.
@@ -37,27 +32,28 @@ class Agent(RenderableObject):
     """
 
     def add_model(self, model):
-        """_summary_
-        Adds a model to the agent. A model must be attached before adding a sensor that uses it
+        """Register an auxiliary model with this agent."""
+        self.model_list.append(model)
+        return model
+
+    def add_sensor(self, sensor, name=None):
+        """Attach a configured sensor to this agent.
+
+        The sensor keeps a reference to its owner so camera setup can parent
+        the optical node to the agent's Panda3D node. The optional registry
+        name is retained for configuration/debug output.
         """
-
-        # Actually adds and CONFIGURES the model to the agent
-        pass
-
-    def add_sensor(self, sensor, *args, **kwargs):
-        """_summary_
-        Adds sensors to the model. You can add models to the agent.
-        Args:
-            sensor (_type_): _description_
-        """
-
-        # create a matcher for a type where the function will search for settings it can set to set it up properly
-        match kwargs:
-            case "thing1 1":
-                pass
-            case "thing 2":
-                pass
-            case _:
-                pass
-
+        sensor.attach_to_agent(self)
+        if name is not None:
+            sensor.registry_name = str(name)
         self.sensor_list.append(sensor)
+        return sensor
+
+    def get_sensor(self, name):
+        """Return an attached sensor by registry or configured name."""
+        for sensor in self.sensor_list:
+            if getattr(sensor, "registry_name", None) == name:
+                return sensor
+            if sensor.name == name:
+                return sensor
+        raise KeyError(f"agent has no sensor named {name!r}")

@@ -81,3 +81,7 @@ agents:
     name: "AgentWithCamera"
     config_path: "config\\agent\\agent_with_camera.yaml"
     agent_id: 3
+  target_drone:
+    name: "ThermalTargetDrone"
+    config_path: "config\\agent\\target_drone.yaml"
+    agent_id: 4

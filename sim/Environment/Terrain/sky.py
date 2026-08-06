@@ -1,13 +1,10 @@
-from panda3d.core import (
-    CompassEffect,
-    PointLight,
-    AmbientLight,
-    LVector3,
-    TextureStage,
-    Loader,
-)
-from panda3d.core import Filename, DirectionalLight, Vec4, Vec3
 import numpy as np
+from panda3d.core import (
+    AmbientLight,
+    DirectionalLight,
+    Vec4,
+)
+
 from sim.utils.functions import string_to_time
 
 light_temp = np.array([1000, 2700, 5500, 6500, 10000])

@@ -2,8 +2,9 @@
 The main overarching file that calls everything else.
 """
 
-from pathlib import Path
 import argparse
+from pathlib import Path
+
 from sim.world import WORLD
 
 

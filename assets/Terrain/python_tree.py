@@ -1,4 +1,4 @@
-from math import sin, cos, tau
+from math import cos, sin, tau
 from pathlib import Path
 
 from panda3d.core import (

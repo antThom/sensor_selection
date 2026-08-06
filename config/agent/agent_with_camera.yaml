@@ -15,14 +15,14 @@ settings:
 
   
 sensors:
-  CameraSensor:
-    type: "eo_camera"
-    config_path: "config\\sensors\\basic_eo_camera.yaml"
+  Boson640:
+    type: "ir_camera"
+    config_path: "config\\sensors\\flir_boson_640.yaml"
 sound:
 animation:
 
 model_configs:
-  model: ".\\assets\\Agents\\Generic Quadcopter Drone.obj"
+  model: ".\\assets\\Agents\\Generic Drone\\Generic Quadcopter Drone.obj"
   position: [-0, 10, 50]
   orientation:
   color: [0, 0, 255]

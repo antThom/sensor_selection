@@ -1,12 +1,7 @@
+import numpy as np
 from panda3d.core import (
-    CollisionRay,
-    CollisionNode,
-    CollisionTraverser,
-    CollisionHandlerQueue,
     BitMask32,
 )
-from pathlib import Path
-import numpy as np
 
 
 class OBJECT:
@@ -17,7 +12,7 @@ class OBJECT:
         vel=None,
         ang_vel=None,
         loader=None,
-        gen_type: str = None,
+        gen_type: str | None = None,
     ):
         self.gen_type = gen_type
 
@@ -37,7 +32,7 @@ class OBJECT:
             self.object.hide()
         return self.object
 
-    def _set_scale(self, scale: np.ndarray = None):
+    def _set_scale(self, scale: np.ndarray | None = None):
         if scale is not None:
             self.object.setScale(*scale)
         else:
@@ -46,8 +41,8 @@ class OBJECT:
     def _set_init_position(
         self,
         pos=None,
-        min_point: list = None,
-        max_point: list = None,
+        min_point: list | None = None,
+        max_point: list | None = None,
         on_ground: bool = False,
     ):
         if self.gen_type is None:

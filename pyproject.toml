@@ -1,0 +1,19 @@
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "C4", "PIE", "PERF", "RUF", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# These executable modules intentionally initialize import paths/backends before
+# importing optional visualization dependencies.
+"sim/Environment/Thermal/thermal_demo.py" = ["E402"]
+"sim/Environment/Thermal/thermal_sanity_check.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

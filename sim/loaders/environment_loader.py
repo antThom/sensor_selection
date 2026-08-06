@@ -2,22 +2,16 @@
 Utilities and loader for loading terrain.
 """
 
-from panda3d.core import Point3
-from panda3d.core import Texture
-from panda3d.core import TextureStage
-from panda3d.core import TexGenAttrib
 from panda3d.core import (
-    CollisionRay,
-    CollisionNode,
-    CollisionTraverser,
-    CollisionHandlerQueue,
     BitMask32,
+    CollisionHandlerQueue,
+    CollisionNode,
+    CollisionRay,
+    CollisionTraverser,
 )
+
 from sim.environment.terrain.atmosphere import ATMOSPHERE
-from sim.environment.terrain.sky import SKY
-from sim.environment.terrain.sun import SUN
 from sim.environment.terrain.terrain import TERRAIN
-from sim.environment.terrain.tree import TREE
 
 
 class EnvironmentLoader:
