@@ -90,6 +90,11 @@ def set_attr_from_configuration(agent: object, config: dict, *args, **kwargs) ->
             search_dictionary(arg)
 
     for attr, value in all_config_dict.items():
+        if type(attr) is not str:
+            # Congrats if you trip this
+            print(f"The attribute {attr} is not a string, it is type {type(attr)}. The attribute {attr} had the value of {value}. The attributes being parsed were: {all_config_dict}")
+            raise TypeError
+        
         # Prevent empty configurations from writing
         if value is None:
             continue

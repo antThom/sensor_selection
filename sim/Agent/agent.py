@@ -1,7 +1,7 @@
 import numpy as np
 
 from sim.environment.ThermalObject import ThermalBody
-from sim.rendering.object import RenderableObject
+from sim.rendering.renderable_object import RenderableObject
 
 
 class Agent(ThermalBody, RenderableObject):

@@ -36,10 +36,8 @@ class AgentLoader:
                 refresh(self.world)
 
     def _render_agent(self, agent):
-        manager = self.world.simulation_manager
-        manager.generate_simulation_node(agent, agent.model)
-        manager.configure_sim_model(agent)
-        manager.render_object(agent)
+        builder = self.world.simulation_manager.renderable_builder
+        builder.with_object(agent).config_from_object(agent).build()
 
     def _load_sensors(self, agent, sensor_configs):
         manager = self.world.simulation_manager
@@ -49,9 +47,6 @@ class AgentLoader:
                 reference,
                 extract_yaml_configurations(reference["config_path"]),
             )
-            manager.generate_simulation_node(sensor, sensor.model)
-            manager.parent_object_models(agent, sensor)
-            manager.configure_sim_model(sensor)
+            manager.renderable_builder.with_object(sensor).config_from_object(sensor).build()
             agent.add_sensor(sensor, registry_name)
             self.world.sensor_loader.setup_sensor(sensor)
-            manager.render_object(sensor)

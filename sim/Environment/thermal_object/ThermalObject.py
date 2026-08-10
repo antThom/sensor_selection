@@ -99,9 +99,7 @@ class ThermalObject:
         if self.mass <= 0 or self.cp <= 0:
             raise ValueError("mass and specific heat must be positive")
         if not 0 <= self.emiss <= 1 or not 0 <= self.absorpt <= 1:
-            raise ValueError(
-                "emissivity and absorptivity must be between 0 and 1"
-            )
+            raise ValueError("emissivity and absorptivity must be between 0 and 1")
 
     def _options(self):
         return {} if self.client_id is None else {"physicsClientId": self.client_id}
@@ -145,12 +143,9 @@ class ThermalObject:
         if p is not None and self.body_id is not None:
             if not self._manual_dimensions:
                 try:
-                    low, high = p.getAABB(
-                        self.body_id, self.link_id, **self._options()
-                    )
+                    low, high = p.getAABB(self.body_id, self.link_id, **self._options())
                     self.dimensions = tuple(
-                        max(float(high[index] - low[index]), 1e-4)
-                        for index in range(3)
+                        max(float(high[index] - low[index]), 1e-4) for index in range(3)
                     )
                 except Exception:
                     pass
@@ -243,21 +238,13 @@ class ThermalObject:
         if norm == 0:
             return 0.0
         direction = tuple(float(value) / norm for value in sun_direction)
-        radius = 0.5 * math.sqrt(
-            sum(side * side for side in self.dimensions)
-        ) + 0.02
+        radius = 0.5 * math.sqrt(sum(side * side for side in self.dimensions)) + 0.02
         center = self.position()
         start = [center[index] + direction[index] * radius for index in range(3)]
-        end = [
-            start[index] + direction[index] * ray_distance for index in range(3)
-        ]
+        end = [start[index] + direction[index] * ray_distance for index in range(3)]
         try:
             hit = p.rayTest(start, end, **self._options())[0]
-            return (
-                1.0
-                if hit[0] < 0 or hit[0] == self.body_id
-                else self.diffuse_shade
-            )
+            return 1.0 if hit[0] < 0 or hit[0] == self.body_id else self.diffuse_shade
         except Exception:
             return 1.0
 
@@ -273,13 +260,9 @@ class ThermalObject:
         effective_conductivity = self.k
         if surface_conductivity is not None and float(surface_conductivity) > 0:
             surface_k = float(surface_conductivity)
-            effective_conductivity = (
-                2.0 * self.k * surface_k / (self.k + surface_k)
-            )
+            effective_conductivity = 2.0 * self.k * surface_k / (self.k + surface_k)
         conductance = (
-            effective_conductivity
-            * max(contact_area, 0.0)
-            / max(path_length, 1e-6)
+            effective_conductivity * max(contact_area, 0.0) / max(path_length, 1e-6)
         )
         return conductance * (float(surface_temp) - self.temperature)
 
@@ -290,15 +273,10 @@ class ThermalObject:
         characteristic_length = max(self.dimensions)
         reynolds = wind * characteristic_length / self.air_nu
         if reynolds < 5e5:
-            nusselt = (
-                0.664
-                * math.sqrt(reynolds)
-                * self.air_pr ** (1.0 / 3.0)
-            )
+            nusselt = 0.664 * math.sqrt(reynolds) * self.air_pr ** (1.0 / 3.0)
         else:
-            nusselt = (
-                max(0.037 * reynolds**0.8 - 871.0, 0.0)
-                * self.air_pr ** (1.0 / 3.0)
+            nusselt = max(0.037 * reynolds**0.8 - 871.0, 0.0) * self.air_pr ** (
+                1.0 / 3.0
             )
         forced_h = self.air_k * nusselt / characteristic_length
         return (self.natural_h**3 + forced_h**3) ** (1.0 / 3.0)
@@ -352,9 +330,7 @@ class ThermalObject:
     ):
         rates = self._zero_rates()
         if ambient_temp is not None:
-            rates["convection"] = self.convection_rate(
-                ambient_temp, wind_speed
-            )
+            rates["convection"] = self.convection_rate(ambient_temp, wind_speed)
         if surroundings_temp is not None:
             rates["longwave"] = self.longwave_rate(surroundings_temp)
         if solar_irradiance > 0:
@@ -386,8 +362,7 @@ class ThermalObject:
         rates = self.heat_rates(**conditions)
         self.temperature = max(
             1.0,
-            self.temperature
-            + rates["total"] * float(dt) / self.thermal_mass,
+            self.temperature + rates["total"] * float(dt) / self.thermal_mass,
         )
         self.last_rates = rates
         self.last_terms = {

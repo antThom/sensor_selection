@@ -8,7 +8,7 @@ from enum import Enum
 from pathlib import Path
 
 from sim.environment.thermal.thermal_manager import ThermalManager
-from sim.rendering.object import RenderableObject
+from sim.rendering.renderable_object import RenderableObject
 
 
 class SensorType(Enum):
