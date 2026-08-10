@@ -239,6 +239,7 @@ def _load_layers(
     network_type: str,
     use_cache: bool,
     add_elevation: bool,
+    dist: float,
 ):
     buildings, bstem = _query_gdf_layer(osm, "buildings", place, point, use_cache, add_elevation)
     nodes, roads, rstem = _load_roads_layer(osm, place, point, network_type, use_cache, add_elevation)
@@ -252,7 +253,6 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--place", type=str, help="OSM place name, e.g. 'Atlanta, Georgia, USA'")
     group.add_argument("--point", type=_parse_point, help="Latitude,longitude point, e.g. '33.7490,-84.3880'")
-
     parser.add_argument("--dist", type=float, default=1000, help="Search radius for point queries in meters")
     parser.add_argument("--network_type", type=str, default="drive", help="OSM network type for roads")
     parser.add_argument("--cache_dir", type=str, default="cache")
@@ -263,25 +263,10 @@ def main():
     parser.add_argument("--output_name", type=str, default="city.glb", help="Output scene filename")
     parser.add_argument("--dem", type=str, default=None, help="Optional DEM raster path for elevation sampling")
     parser.add_argument("--add_elevation", action="store_true", help="Attach elevation metadata from terrain/DEM")
-    parser.add_argument(
-        "--tile_size",
-        type=float,
-        default=None,
-        help="Tile size in projected map units. If omitted, export a single full-city scene.",
-    )
-    parser.add_argument(
-        "--tile_overlap",
-        type=float,
-        default=10.0,
-        help="Overlap between adjacent tiles in projected map units.",
-    )
-    parser.add_argument(
-        "--tile_prefix",
-        type=str,
-        default="tile",
-        help="Prefix used when naming tile output folders and files.",
-    )
-
+    parser.add_argument("--tile_size", type=float, default=None, help="Tile size in projected map units. If omitted, export a single full-city scene.",)
+    parser.add_argument("--tile_overlap", type=float, default=10.0, help="Overlap between adjacent tiles in projected map units.",)
+    parser.add_argument("--tile_prefix", type=str, default="tile", help="Prefix used when naming tile output folders and files.",)
+    parser.add_argument("--verify", action="store_true", help="Preview the Bam file for verification",)
     args = parser.parse_args()
 
     terrain = RasterTerrainSampler(args.dem) if args.dem else ConstantTerrainSampler()
@@ -295,6 +280,7 @@ def main():
     place = args.place
     point = args.point
     use_cache = args.use_cache and not args.overwrite
+    dist = args.dist
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -305,6 +291,7 @@ def main():
         network_type=args.network_type,
         use_cache=use_cache,
         add_elevation=args.add_elevation,
+        dist=dist,
     )
 
     _print_layer_counts(buildings, nodes, roads, water, parks)
@@ -384,7 +371,7 @@ if __name__ == "__main__":
        python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache
 
     2. Tiled export:
-       python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache --tile_size 2500
+       python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache --dist 100 --verify
 
     3. Point-based location:
        python main.py --point 33.7490,-84.3880 --dist 1500 --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation
