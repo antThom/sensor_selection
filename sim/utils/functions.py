@@ -32,6 +32,8 @@ def extract_yaml_configurations(file_path: str):
             configs = yaml.safe_load(file)
     except FileNotFoundError:
         raise FileNotFoundError(f"configuration file not found: {file_path}") from None
+    except yaml.parser.ParseError:
+        raise yaml.parser.ParseError(f"A syntax error occured in file {file_path}. Fix the file an try again")
 
     if not isinstance(configs, dict):
         raise TypeError(f"configuration root must be a mapping: {file_path}")
@@ -90,16 +92,19 @@ def set_attr_from_configuration(agent: object, config: dict, *args, **kwargs) ->
             search_dictionary(arg)
 
     for attr, value in all_config_dict.items():
-        if type(attr) is not str:
-            # Congrats if you trip this
-            print(f"The attribute {attr} is not a string, it is type {type(attr)}. The attribute {attr} had the value of {value}. The attributes being parsed were: {all_config_dict}")
-            raise TypeError
-        
+            
         # Prevent empty configurations from writing
         if value is None:
             continue
 
-        if not hasattr(agent, attr):
-            continue
+        try:
+            if not hasattr(agent, attr):
+                continue
+        except TypeError as error:
+            # Congrats if you trip this
+            print(f"The attribute {attr} is not a string, it is type {type(attr)}. The attribute {attr} had the value of {value}. The attributes being parsed were: {all_config_dict}", error)
+        
+        setattr(agent, str(attr), value)
 
-        setattr(agent, attr, value)
+
+        

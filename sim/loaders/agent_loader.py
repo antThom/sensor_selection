@@ -35,18 +35,19 @@ class AgentLoader:
             if refresh is not None:
                 refresh(self.world)
 
+
     def _render_agent(self, agent):
         builder = self.world.simulation_manager.renderable_builder
         builder.with_object(agent).config_from_object(agent).build()
 
     def _load_sensors(self, agent, sensor_configs):
-        manager = self.world.simulation_manager
+        builder = self.world.simulation_manager.renderable_builder
         for registry_name, reference in sensor_configs.items():
             sensor = self.world.sensor_loader.create_sensor(
                 reference["type"],
                 reference,
                 extract_yaml_configurations(reference["config_path"]),
             )
-            manager.renderable_builder.with_object(sensor).config_from_object(sensor).build()
+            builder.with_object(sensor).config_from_object(sensor).build()
             agent.add_sensor(sensor, registry_name)
             self.world.sensor_loader.setup_sensor(sensor)
