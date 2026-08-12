@@ -1,10 +1,10 @@
 """Script that handles all the object rendering."""
-
+import numpy
+import functools
 from panda3d.core import PandaNode, NodePath
 from direct.showbase.ShowBase import ShowBase
-from sim.utils.functions import set_attr_from_configuration
+from sim.utils.functions import set_attr_from_configuration, accept_ndarrays, unbox_1d_ndarray_list
 from sim.utils.builder import BuilderTemplate
-import functools
 
 
 class RenderableObject:
@@ -13,10 +13,10 @@ class RenderableObject:
     def __init__(self):
         self.name = ""
 
-        self.position = [0, 0, 0]
-        self.orientation = [0, 0, 0]
-        self.color = [255, 255, 255]  # In the format of RGB
-        self.scale = 1
+        self._position = [0, 0, 0]
+        self._orientation = [0, 0, 0]
+        self._color = [255, 255, 255]  # In the format of RGB
+        self._scale = 1
 
         self.object_node = None
         self.object_node_path = None
@@ -35,59 +35,70 @@ class RenderableObject:
 
     @property
     def position(self):
-        return self.position
+        return self._position
     
     @position.setter
+    @accept_ndarrays
     def position(self, value):
-        if value is not isinstance(list):
-            raise TypeError("Position must be a list in [x, y, z] format.")
+        if not isinstance(value, (list, numpy.ndarray)):
+            raise TypeError(f"Position must be a list in [x, y, z] format, not type {type(value)}")
         if len(value) != 3:
             raise ValueError("Position must be a list in [x, y, z] format.")
+
+
+        self._position = value
         
-        self.position = value
-        self.object_node_path.setPos(self.position[0], self.position[1], self.position[2])
+        # Pulls values out of single array
+        unbox_1d_ndarray_list(value)
+        
+        if self.object_node_path is not None:
+            self.object_node_path.setPos(self._position[0], self._position[1], self._position[2])
     
     @property
     def orientation(self):
         """Getter for a RenderableObjectBuilder's orientation"""
-        return self.orientation
+        return self._orientation
     
     @orientation.setter
+    @accept_ndarrays
     def orientation(self, value):
         """Setter for a RenderableObjectBuilder's orientation"""
-        if value is not isinstance(list):
+        if not isinstance(value, list):
             raise TypeError("Orientation must be a list in [x, y, z] format.")
         if len(value) != 3:
             raise ValueError("Orientation must be a list in [x, y, z] format.")
-        self.orientation = value
-        self.object_node_path.setHpr(self.orientation[0], self.orientation[1], self.orientation[2])
+        self._orientation = unbox_1d_ndarray_list(value)
+        if self.object_node_path is not None:
+            self.object_node_path.setHpr(self._orientation[0], self._orientation[1], self._orientation[2])
     
     @property
     def color(self):
         """Getter for a RenderableObjectBuilder's color array"""
-        return self.color
+        return self._color
     
     @color.setter
+    @accept_ndarrays
     def color(self, value):
         """Setter for a RenderableObjectBuilder's color array"""
-        if value is not isinstance(list):
+        if not isinstance(value, list):
             raise TypeError("Color must a list in the format of [R, G, B]")
         if len(value) != 3:
             raise ValueError("Color must a list in the format of [R, G, B]")
-        for i in list:
-            if i is not (isinstance(int) or isinstance(float)):
-                raise TypeError("Color values must be either an integer or float.")
+        for i in value:
+            # if not isinstance(value, (int, float)):
+            #     raise TypeError(f"Color values must be either an integer or float, not {type(i)}")
             if i > 255:
                 raise ValueError("Color values cannot go over 255")
             if i < 0:
                 raise ValueError("Color values cannot be negative")
-        self.color = value
-        self.object_node_path.setColor(self.color[0], self.color[1], self.color[2], 1)
+        self._color = unbox_1d_ndarray_list(value)
+        if self.object_node_path is not None:
+            self.object_node_path.setColor(self._color[0], self._color[1], self._color[2], 1)
         
     @property
     def scale(self):
         """Getter for a RenderableObjectBuilder's scale"""
-        return self.scale
+        return self._scale
     
     @scale.setter
     def scale(self, value):
@@ -96,11 +107,12 @@ class RenderableObject:
             raise ValueError("Scale cannot be zero!")
         if value < 0:
             raise ValueError("Scale cannot be negative.")
-        self.scale = value
-        self.object_node_path.setScale(self.scale)
+        self._scale = value
+        if self.object_node_path is not None:
+            self.object_node_path.setScale(self._scale)
 
     @staticmethod
-    def parent_object_models(parent: RenderableObject, child: RenderableObject) -> None:
+    def parent_object_models(parent, child) -> None:
         """Parent a child simulation object to another object's root."""
 
         child.parent_node_path = parent.object_node_path
@@ -137,10 +149,10 @@ class RenderableObjectBuilder(BuilderTemplate):
 
         # Below are default configurations
 
-        self.position = [0, 0, 0]
-        self.orientation = [0, 0, 0]
-        self.color = [255, 255, 255]  # In the format of RGB
-        self.scale = 1
+        self._position = [0, 0, 0]
+        self._orientation = [0, 0, 0]
+        self._color = [255, 255, 255]  # In the format of RGB
+        self._scale = 1
 
         self._is_actor = False
         self._has_model = True
@@ -148,7 +160,7 @@ class RenderableObjectBuilder(BuilderTemplate):
 
         self._parent_node_path = None
 
-        self.model: str = ""
+        self._model: str = ""
         self._animations: list = []
         self._textures: list = []
 
@@ -164,32 +176,34 @@ class RenderableObjectBuilder(BuilderTemplate):
     
     @property
     def position(self):
-        return self.position
+        return self._position
     
     @position.setter
+    @accept_ndarrays
     @chainable
     def position(self, value):
-        if value is not isinstance(list):
+        if not isinstance(value, list):
             raise TypeError("Position must be a list in [x, y, z] format.")
         if len(value) != 3:
             raise ValueError("Position must be a list in [x, y, z] format.")
         
-        self.position = value
+        self._position = unbox_1d_ndarray_list(value)
     
     @property
     def orientation(self):
         """Getter for a RenderableObjectBuilder's orientation"""
-        return self.orientation
+        return self._orientation
     
     @orientation.setter
+    @accept_ndarrays
     @chainable
     def orientation(self, value):
         """Setter for a RenderableObjectBuilder's orientation"""
-        if value is not isinstance(list):
+        if not isinstance(value, (list, numpy.ndarray)):
             raise TypeError("Orientation must be a list in [x, y, z] format.")
         if len(value) != 3:
             raise ValueError("Orientation must be a list in [x, y, z] format.")
-        self.orientation = value
+        self._orientation = unbox_1d_ndarray_list(value)
     
     @property
     def color(self):
@@ -197,28 +211,30 @@ class RenderableObjectBuilder(BuilderTemplate):
         return self.color
     
     @color.setter
+    @accept_ndarrays
     @chainable
     def color(self, value):
         """Setter for a RenderableObjectBuilder's color array"""
-        if value is not isinstance(list):
+        if not isinstance(value, (list, numpy.ndarray)):
             raise TypeError("Color must a list in the format of [R, G, B]")
         if len(value) != 3:
             raise ValueError("Color must a list in the format of [R, G, B]")
         for i in list:
-            if i is not (isinstance(int) or isinstance(float)):
-                raise TypeError("Color values must be either an integer or float.")
+            if i is not (isinstance(i, (int, float, numpy.ndarray))):
+                raise Warning("Color values must be either an integer or float.")
             if i > 255:
                 raise ValueError("Color values cannot go over 255")
             if i < 0:
                 raise ValueError("Color values cannot be negative")
-        self.color = value
+        self._color = unbox_1d_ndarray_list(value)
         
     @property
     def scale(self):
         """Getter for a RenderableObjectBuilder's scale"""
-        return self.scale
+        return self._scale
     
     @scale.setter
+    @accept_ndarrays
     @chainable
     def scale(self, value):
         """Setter for a RenderableObjectBuilder's scale"""
@@ -226,8 +242,7 @@ class RenderableObjectBuilder(BuilderTemplate):
             raise ValueError("Scale cannot be zero!")
         if value < 0:
             raise ValueError("Scale cannot be negative.")
-        self.scale = value
-    
+        self._scale = value
 
     @chainable
     def is_actor(self, value: bool):
@@ -270,11 +285,11 @@ class RenderableObjectBuilder(BuilderTemplate):
         # TODO: Safety check on whether object has it
         # The object should have these attributes because it's a
         # renderable object
-        self.position = object.position
-        self.orientation = object.orientation
-        self.color = object.color
-        self.scale = object.scale
-        self.model = object.model
+        self._position = object.position
+        self._orientation = object.orientation
+        self._color = object.color
+        self._scale = object.scale
+        self._model = object.model
 
     @chainable
     def with_parent(self, parent_object_node):
@@ -284,7 +299,7 @@ class RenderableObjectBuilder(BuilderTemplate):
     @chainable
     def with_model(self, model_path: str):
         """Creates the node with the model given"""
-        self.model = model_path
+        self._model = model_path
         return self
 
     @chainable
@@ -318,11 +333,11 @@ class RenderableObjectBuilder(BuilderTemplate):
             self._renderable_object.model_node = None
             self._renderable_object.model_node_path = None
 
-        if self.model == "":
+        if self._model == "":
             raise AttributeError("Rendering an object must have a model. If you do not want a model, ensure that it is disabled.")
 
         try:
-            self._renderable_object.model_node = self.show_base.loader.loadModel(self.model)
+            self._renderable_object.model_node = self.show_base.loader.loadModel(self._model)
             self._renderable_object.model_node_path = NodePath(
                 self._renderable_object.model_node
             )
@@ -350,22 +365,22 @@ class RenderableObjectBuilder(BuilderTemplate):
         if self._parent_node_path is not None:
             self._renderable_object.object_node_path.setPos(
                 self.parent_node_path,
-                self.position[0],
-                self.position[1],
-                self.position[2],
+                self._position[0],
+                self._position[1],
+                self._position[2],
             )
         else:
             self._renderable_object.object_node_path.setPos(
-                self.position[0], self.position[1], self.position[2]
+                self._position[0], self._position[1], self._position[2]
             )
 
         self._renderable_object.object_node_path.setHpr(
-            self.orientation[0], self.orientation[1], self.orientation[2]
+            self._orientation[0], self._orientation[1], self._orientation[2]
         )
-        self._renderable_object.object_node_path.setScale(self.scale)
+        self._renderable_object.object_node_path.setScale(self._scale)
 
         self._renderable_object.object_node_path.setColor(
-            self.color[0], self.color[1], self.color[2], 1
+            self._color[0], self._color[1], self._color[2], 1
         )
 
     def _render_object(self):
