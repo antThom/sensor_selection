@@ -15,6 +15,6 @@ class SimulationManager:
     def __init__(self, show_base: ShowBase):
         self.world = show_base
         self.renderable_builder = RenderableObjectBuilder(self.world)
-        
+
     # Empty for now.
     # Initalization of objects were moved to the `RenderableObjectBuilder()`

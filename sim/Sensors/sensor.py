@@ -38,7 +38,7 @@ class Sensor(ABC, RenderableObject):
         """Record the owning agent and return this sensor for fluent setup."""
         self.agent = agent
         return self
-    
+
     def set_configs(self, *args, **kwargs):
         set_attr_from_configuration(self, *args, **kwargs)
 

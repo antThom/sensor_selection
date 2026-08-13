@@ -1,5 +1,4 @@
-import numpy as np
-
+import warnings
 from sim.environment.ThermalObject import ThermalBody
 from sim.rendering.renderable_object import RenderableObject
 
@@ -10,21 +9,70 @@ class Agent(ThermalBody, RenderableObject):
     def __init__(self, thermal_manager=None):
         super().__init__(thermal_manager=thermal_manager)
 
-        # Position and orientation are inherited from RenderableObject. The
-        # remaining dynamics fields are agent-specific and retain array shapes
-        # expected by the microphone and control integrations.
-        self.agent_id = None
-        self.velocity = np.zeros((3, 1))
-        self.angular_rates = np.zeros((3, 1))
-        self.mass = 1.0
-        self.inertia = np.eye(3)
-        self.tf = {}
-        self.max_vel = 1.0
-        self.sensor_list = []
-        self.model_list = []
+        # Position and orientation are inherited from RenderableObject.
+        # Physics will be implemented by PyBullet.
+        self._agent_id = None
+        self._name = ""
+        self._tf = {}
+        self._team = []
+        self._sensor_list = []
+        self._model_list = []
 
-    def get_id(self):
-        return getattr(self, "agent_id", None)
+    @property
+    def id(self):
+        """Getter for the agent id"""
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        """Setter for an agent's id"""
+        try:
+            value = int(value)
+        except ValueError:
+            warnings.warn("ID cannot be converted to integer!")
+        self._id = value
+
+    @property
+    def name(self):
+        """Getter for the agent's name. Usually a string, but doesn't have to be"""
+        return self._name
+
+    @name.setter
+    def name(self, value) -> None:
+        """Getter for agent's name"""
+        self._name = str(value)
+
+    @property
+    def tf(self):
+        """Returns the time set for physics"""
+        return self._tf
+
+    @tf.setter
+    def tf(self, value):
+        """Setter for the tf for physics calculations"""
+        try:
+            value = float(value)
+        except ValueError:
+            raise ValueError(
+                f"Value {value} cannot be converted to float as type {type(value)} and cannot be accepted."
+            )
+            
+        self._if = value
+
+    @property
+    def team(self):
+        """Getter that returns the team that the object is on"""
+        return self._team
+
+    @property
+    def sensor_list(self):
+        """Getter for the agent's sensor list, which contains the sensors attached to the agent"""
+        return self._sensor_list
+
+    @property
+    def model_list(self):
+        """Getter for the agent's model list"""
+        return self._model_list
 
     """
     The add_* functions will have magic configuration. They will sort through almost anything and find what they're looking for.
