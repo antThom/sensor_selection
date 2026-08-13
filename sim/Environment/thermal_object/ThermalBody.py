@@ -39,7 +39,9 @@ class ThermalBody:
         if self._thermal_body_id is not None:
             self.thermal_manager.unregister_body(self._thermal_body_id)
 
-        resolved_body_id = id(self) if body_id is None else body_id
+        resolved_body_id = (
+            id(self) if body_id is None else body_id
+        )  # BUG: Replace id(self) with a different thing. id() too large to be used with pybullet
         self._thermal_body_id = resolved_body_id
         self.thermal_object = self.thermal_manager.register_body(
             resolved_body_id,
