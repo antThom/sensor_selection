@@ -60,7 +60,7 @@ class AgentBuilder(BuilderTemplate):
         self._rendering_agent = True  # Switch to render the agent
 
         self._thermal_manager = None
-        self._thermal_body_args = list()
+        self._thermal_body_args = [None, None]
 
     def chainable(self, method):
         """
