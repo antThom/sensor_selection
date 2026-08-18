@@ -62,7 +62,7 @@ class AgentBuilder(BuilderTemplate):
         self._thermal_manager = None
         self._thermal_body_args = [None, None]
 
-    def chainable(self, method):
+    def chainable(method):
         """
         Decorator to enable a function to be chained on others when calling the builder.
         """
@@ -185,7 +185,7 @@ class AgentBuilder(BuilderTemplate):
         append additional sensors to the agent. This will have the lowest priority
         """
         self._sensor_configs = config_dict
-        if not isinstance(configuration, dict):
+        if not isinstance(config_dict, dict):
             raise ValueError("Set configurations must be a dictionary")
 
     @chainable
