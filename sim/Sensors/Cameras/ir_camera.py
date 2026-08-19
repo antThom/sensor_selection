@@ -366,10 +366,10 @@ class IRCamera(Camera):
                 "last_temperature": None,
             }
         )
-        
+
         # This piece of code was mysteriously put here for an unknown reason...and returned errors
         # Thus, it's commented out
-        
+
         # channels = [
         #     np.interp(normalized, stops, colors[:, channel]) for channel in range(3)
         # ]

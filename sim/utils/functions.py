@@ -1,6 +1,7 @@
 from datetime import datetime, time
 
 import yaml
+import numpy as np
 
 
 def string_to_time(time_str: str, fmt: str = "%H:%M:%S") -> time:
@@ -32,6 +33,10 @@ def extract_yaml_configurations(file_path: str):
             configs = yaml.safe_load(file)
     except FileNotFoundError:
         raise FileNotFoundError(f"configuration file not found: {file_path}") from None
+    except yaml.parser.ParserError:
+        raise yaml.parser.ParserError(
+            f"A syntax error occured in file {file_path}. Fix the file an try again"
+        )
 
     if not isinstance(configs, dict):
         raise TypeError(f"configuration root must be a mapping: {file_path}")
@@ -90,11 +95,60 @@ def set_attr_from_configuration(agent: object, config: dict, *args, **kwargs) ->
             search_dictionary(arg)
 
     for attr, value in all_config_dict.items():
+
         # Prevent empty configurations from writing
         if value is None:
             continue
 
-        if not hasattr(agent, attr):
-            continue
+        try:
+            if not hasattr(agent, attr):
+                continue
+        except TypeError as error:
+            # Congrats if you trip this
+            print(
+                f"The attribute {attr} is not a string, it is type {type(attr)}. The attribute {attr} had the value of {value}. The attributes being parsed were: {all_config_dict}",
+                error,
+            )
 
-        setattr(agent, attr, value)
+        setattr(agent, str(attr), value)
+
+
+def accept_ndarrays(func):
+    """Decorator to convert possible numpy arrays into lists."""
+
+    def wrapper(*args, **kwargs):
+        new_args = list()
+        new_kwargs = dict()
+
+        # Convert np.array args into lists, if any
+        for arg in args:
+            if isinstance(arg, np.ndarray):
+                new_args.append(arg.tolist())
+            else:
+                new_args.append(arg)
+
+        # Convert values attached to their keys
+        for key, value in kwargs.items():
+            if isinstance(value, np.ndarray):
+                new_kwargs[key] = value.tolist()
+            else:
+                new_kwargs[key] = value
+
+        func(*new_args, **new_kwargs) if new_args and new_args else None
+        func(*new_args) if new_kwargs == {} else None
+        func(**new_kwargs) if new_args == [] else None
+
+    return wrapper
+
+
+def unbox_1d_ndarray_list(list_to_format: list) -> list:
+    """
+    If a nested list inside a list, take out the value. For 1D arrays.
+    Used to unbox the values inside a list after being converted out of an ndarray
+    """
+
+    for index, value in enumerate(list_to_format):
+        if isinstance(value, list):
+            list_to_format[index] = value[0]
+
+    return list_to_format

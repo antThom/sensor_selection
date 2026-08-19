@@ -59,8 +59,8 @@ mount:
   power_consumption_W: 0.5
 
 model_configs:
-  model: ""
+  model: ".\\assets\\Sensors\\SLR_Camera\\10124_SLR_Camera_SG_V1_Iteration2.obj"
   position: [0.0, 0.0, 0.0]
   orientation: [0.0, 0.0, 0.0]
   color: [1.0, 1.0, 1.0]
-  scale: 1.0
+  scale: 0.1

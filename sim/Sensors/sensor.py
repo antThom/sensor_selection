@@ -8,7 +8,8 @@ from enum import Enum
 from pathlib import Path
 
 from sim.environment.thermal.thermal_manager import ThermalManager
-from sim.rendering.object import RenderableObject
+from sim.rendering.renderable_object import RenderableObject
+from sim.utils.functions import set_attr_from_configuration
 
 
 class SensorType(Enum):
@@ -37,6 +38,9 @@ class Sensor(ABC, RenderableObject):
         """Record the owning agent and return this sensor for fluent setup."""
         self.agent = agent
         return self
+
+    def set_configs(self, *args, **kwargs):
+        set_attr_from_configuration(self, *args, **kwargs)
 
 
 def load_sensor_from_file(

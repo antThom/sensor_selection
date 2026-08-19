@@ -66,9 +66,7 @@ class FlyCamera(Entity):
         )
         if move.length() > 0:
             boost = 2.0 if held_keys["shift"] else 1.0
-            self.position += (
-                move.normalized() * self.speed * boost * time.dt
-            )
+            self.position += move.normalized() * self.speed * boost * time.dt
 
     def input(self, key):
         if key == "tab":
@@ -137,9 +135,7 @@ class ThermalDemo:
         )
         self.sunlight = DirectionalLight(shadows=True)
         self.sunlight.look_at(Vec3(-0.45, -0.84, 0.30))
-        self.ambient_light = AmbientLight(
-            color=color.rgba(105, 116, 128, 255)
-        )
+        self.ambient_light = AmbientLight(color=color.rgba(105, 116, 128, 255))
         FlyCamera()
 
         self.readout = Text(
@@ -204,9 +200,7 @@ class ThermalDemo:
 
 def main():
     global demo
-    parser = argparse.ArgumentParser(
-        description="Panda3D/PyBullet thermal cube demo"
-    )
+    parser = argparse.ArgumentParser(description="Panda3D/PyBullet thermal cube demo")
     parser.add_argument(
         "--wind",
         type=float,

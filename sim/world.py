@@ -27,18 +27,14 @@ class WORLD(ShowBase):
 
         thermal_config = yaml_config.get("thermal", {})
         atmosphere_time = (
-            yaml_config.get("atmosphere", {})
-            .get("time", {})
-            .get("time", 12)
+            yaml_config.get("atmosphere", {}).get("time", {}).get("time", 12)
         )
         self.thermal_model = ThermalManager(
             time_of_day=thermal_config.get("time_of_day", atmosphere_time),
             ambient_K=thermal_config.get(
                 "ambient_temp", yaml_config.get("ambient_temp", 293.0)
             ),
-            T_sky=thermal_config.get(
-                "sky_temp", yaml_config.get("sky_temp", 260.0)
-            ),
+            T_sky=thermal_config.get("sky_temp", yaml_config.get("sky_temp", 260.0)),
         )
 
         # Load physics simulation with pybullet
