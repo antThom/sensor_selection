@@ -5,6 +5,8 @@ from trimesh.viewer import SceneViewer
 from PIL import Image
 import ctypes
 import pyglet
+import yaml
+from pathlib import Path
 from pyglet.gl import GL_REPEAT, GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE
 
 def maximize_viewer(dt):
@@ -16,14 +18,28 @@ def maximize_viewer(dt):
         ctypes.windll.user32.ShowWindow(hwnd, SW_MAXIMIZE)
 
 class HOUSE_GEN():
-    def __init__(self,width=10.0, depth=8.0, wall_height=3.0, wall_thickness=0.20,roof_height=2.0):
-        self.scene = self.create_house(
-            width,
-            depth,
-            wall_height,
-            wall_thickness,
-            roof_height,
-        )
+    def __init__(self,width=10.0, depth=8.0, wall_height=3.0, wall_thickness=0.20,roof_height=2.0, config_file=None):
+        default_house_yaml=Path("assets","Terrain","Generate","house","config","houses.yaml")
+        if default_house_yaml.exists:
+            print(f"houses.yaml file is found and the selected house is {config_file}")
+            with open(str(default_house_yaml), "r") as file:
+                default_houses_config = yaml.safe_load(file)
+        else:
+            print(f"houses.yaml was not found: {default_house_yaml}")
+            return
+        
+        if config_file is None:
+            house = default_houses_config["single_family"]["1_story"]["basic"]
+            self.scene = self.create_house(
+                house["width"],
+                house["depth"],
+                wall_height,
+                wall_thickness,
+                roof_height,
+            )
+        else:
+            with open(str(config_file), "r") as file:
+                config = yaml.safe_load(file)
 
     def make_box(self,
         size: tuple[float, float, float],

@@ -1,0 +1,99 @@
+default_window: &window
+  width: 1.5
+  height: 1.3
+  thickness: 0.08
+  texture: [100, 149, 237, 150]
+
+default_door: &door
+  width: 1.0
+  height: 2.2
+  thickness: 0.1
+  texture: "assets//textures//building_materials//door//wood_panel_door_glass.png"
+
+single_family:
+  1_story: 
+    basic:
+      width: 10.0
+      depth: 8.0
+      wall:
+        height: 3.0
+        thickness: 0.20
+        texture: "assets//textures//building_materials//bricks//Bricks097_1K-JPG//Bricks097_1K-JPG_Color.jpg"
+      roof:
+        type: gable
+        roof_height: 2.0
+      front_openings:
+        - type: door
+          offset:
+            reference: center
+          z: 0.0
+        - type: window
+          <<: *window
+          offset:
+            reference: left
+            margin: 2.0
+          z: 1.0
+        - type: window
+          <<: *window
+          offset:
+            reference: right
+            margin: 2.0
+          z: 1.0         
+      back_openings:
+        - type: window
+          <<: *window
+          offset:
+            reference: center
+          z: 1.0    
+      left_openings:
+        - type: window
+          <<: *window
+          offset:
+            reference: center
+          z: 1.0    
+      right_openings:
+        - type: window
+          <<: *window
+          offset:
+            reference: center
+          z: 1.0
+  
+  2_story:
+    row_home_middle:
+      width: 5.0
+      depth: 10.0
+      wall:
+        height: 6.7
+        thickness: 0.20
+      roof:
+        type: flat
+        roof_height: 0.20
+      front_openings:
+        - type: door
+          offset:
+            reference: left
+            margin: 1.0
+          z: 0.0
+        - type: window
+          <<: *window
+          offset:
+            reference: right
+            margin: 1.0
+          z: 1.5
+        - type: window
+          <<: *window
+          offset:
+            reference: right
+            margin: 1.0
+          z: 4.0  
+        - type: window
+          <<: *window
+          offset:
+            reference: left
+            margin: 1.0
+          z: 4.0  
+      back_openings: None
+      left_openings: None
+      right_openings: None
+
+          
