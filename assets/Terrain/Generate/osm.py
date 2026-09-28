@@ -9,11 +9,13 @@ Includes place->point fallback and lightweight on-disk caching for GeoDataFrames
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple
+import math
 import re
 
 import geopandas as gpd
 import osmnx as ox
 import pandas as pd
+from shapely.geometry import box
 
 
 # ---------------------------------------------------------------------
@@ -51,9 +53,10 @@ class OSMCityBundle:
 class OSMDownloader:
     """Download and cache OSM features in projected CRS (meters).
 
-    The downloader tries a place query first and falls back to a point query
-    if the place-based request fails. Results can optionally be cached to disk
-    so later runs can skip the OSM request entirely.
+    Place names are geocoded and queried around their returned center point;
+    point inputs use the provided center directly. Both query the same square
+    area. Results can optionally be cached to disk so later runs can skip the
+    OSM request entirely. ``dist`` is the square side length in meters.
     """
 
     def __init__(
@@ -68,6 +71,9 @@ class OSMDownloader:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.dist = float(dist)
+        if not math.isfinite(self.dist) or self.dist <= 0:
+            raise ValueError("dist must be a finite, positive square side length in meters")
+        self.query_radius = self.dist / 2.0
         self.overwrite = bool(overwrite)
         self.clean_geometry = bool(clean_geometry)
         self.minimum_area = float(minimum_area)
@@ -137,6 +143,30 @@ class OSMDownloader:
         except Exception:
             return None
 
+    def _clip_gdf_to_query_area(
+        self,
+        gdf: gpd.GeoDataFrame,
+        point: Tuple[float, float],
+    ) -> gpd.GeoDataFrame:
+        if gdf is None or gdf.empty:
+            return gdf
+
+        boundary = box(*ox.utils_geo.bbox_from_point(point, self.query_radius))
+        if gdf.crs is not None and str(gdf.crs).upper() not in ("EPSG:4326", "OGC:CRS84"):
+            boundary = gpd.GeoSeries([boundary], crs="EPSG:4326").to_crs(gdf.crs).iloc[0]
+
+        clipped = gdf.copy()
+        clipped.geometry = clipped.geometry.intersection(boundary)
+        return clipped.loc[~clipped.geometry.isna() & ~clipped.geometry.is_empty]
+
+    def _features_from_point(
+        self,
+        point: Tuple[float, float],
+        tags: dict,
+    ) -> gpd.GeoDataFrame:
+        gdf = ox.features_from_point(point, tags, dist=self.query_radius)
+        return self._clip_gdf_to_query_area(gdf, point)
+
     def _add_elevation_column(self, gdf: gpd.GeoDataFrame, col_name: str = "ground_z") -> gpd.GeoDataFrame:
         if gdf is None or gdf.empty:
             return gdf
@@ -202,7 +232,8 @@ class OSMDownloader:
             return out
 
         try:
-            joined = gpd.sjoin(out, lu, how="left", predicate="intersects")
+            join_input = out.drop(columns=[output_column], errors="ignore")
+            joined = gpd.sjoin(join_input, lu, how="left", predicate="intersects")
             if "index_right" in joined.columns:
                 joined = joined.drop(columns=["index_right"])
             joined = joined.rename(columns={landuse_column: output_column})
@@ -219,7 +250,7 @@ class OSMDownloader:
         return self.cache_dir / f"{stem}{suffix}"
 
     def _gdf_cache_stem(self, kind: str, name: str) -> str:
-        return f"{kind}__{self._slugify(name)}"
+        return f"{kind}__{self._slugify(name)}__square_{self.dist:g}m"
 
     def _save_gdf(self, gdf: gpd.GeoDataFrame, stem: str) -> Optional[Path]:
         if gdf is None:
@@ -274,30 +305,28 @@ class OSMDownloader:
         self,
         place: str,
         tags: dict,
-        dist: Optional[float] = None,
     ) -> gpd.GeoDataFrame:
         try:
-            return ox.features_from_place(place, tags)
+            point = ox.geocode(place)
+            return self._features_from_point(point, tags)
         except Exception as e:
-            print(f"[WARN] features_from_place failed for '{place}': {e}")
-            try:
-                point = ox.geocode(place)
-                return ox.features_from_point(point, tags, dist=self.dist if dist is None else dist)
-            except Exception as e2:
-                print(f"[ERROR] features_from_point fallback failed for '{place}': {e2}")
-                return gpd.GeoDataFrame()
+            print(f"[ERROR] square feature query failed for '{place}': {e}")
+            return gpd.GeoDataFrame()
 
     def _query_graph_place_or_point(self, place: str, network_type: str = "drive"):
         try:
-            return ox.graph_from_place(place, network_type=network_type, simplify=True)
+            point = ox.geocode(place)
+            graph = ox.graph_from_point(
+                point,
+                dist=self.query_radius,
+                dist_type="bbox",
+                network_type=network_type,
+                simplify=True,
+            )
+            return graph, point
         except Exception as e:
-            print(f"[WARN] graph_from_place failed for '{place}': {e}")
-            try:
-                point = ox.geocode(place)
-                return ox.graph_from_point(point, dist=self.dist, network_type=network_type, simplify=True)
-            except Exception as e2:
-                print(f"[ERROR] graph_from_point fallback failed for '{place}': {e2}")
-                return None
+            print(f"[ERROR] square road query failed for '{place}': {e}")
+            return None, None
 
     # ------------------------------------------------------------------
     # Buildings
@@ -344,7 +373,7 @@ class OSMDownloader:
             if cached is not None:
                 return cached
 
-        gdf = ox.features_from_point(point, tags={"building": True}, dist=self.dist)
+        gdf = self._features_from_point(point, tags={"building": True})
         gdf = self._project(self._clean(gdf))
         gdf = self._filter_min_area(gdf)
         gdf = self._add_building_metadata(gdf)
@@ -374,12 +403,14 @@ class OSMDownloader:
             if nodes is not None and edges is not None:
                 return nodes, edges
 
-        G = self._query_graph_place_or_point(place, network_type=network_type)
+        G, point = self._query_graph_place_or_point(place, network_type=network_type)
         if G is None:
             empty = gpd.GeoDataFrame()
             return empty, empty
 
         nodes, edges = ox.graph_to_gdfs(G)
+        nodes = self._clip_gdf_to_query_area(nodes, point)
+        edges = self._clip_gdf_to_query_area(edges, point)
         nodes = self._project(self._clean(nodes))
         edges = self._project(self._clean(edges))
         if add_elevation:
@@ -405,13 +436,21 @@ class OSMDownloader:
                 return nodes, edges
 
         try:
-            G = ox.graph_from_point(point, dist=self.dist, network_type=network_type, simplify=True)
+            G = ox.graph_from_point(
+                point,
+                dist=self.query_radius,
+                dist_type="bbox",
+                network_type=network_type,
+                simplify=True,
+            )
         except Exception as e:
             print(f"[ERROR] graph_from_point failed for {point}: {e}")
             empty = gpd.GeoDataFrame()
             return empty, empty
 
         nodes, edges = ox.graph_to_gdfs(G)
+        nodes = self._clip_gdf_to_query_area(nodes, point)
+        edges = self._clip_gdf_to_query_area(edges, point)
         nodes = self._project(self._clean(nodes))
         edges = self._project(self._clean(edges))
         if add_elevation:
@@ -466,7 +505,7 @@ class OSMDownloader:
                 return cached
 
         try:
-            gdf = ox.features_from_point(point, tags={"bridge": True}, dist=self.dist)
+            gdf = self._features_from_point(point, tags={"bridge": True})
         except Exception as e:
             print(f"[ERROR] bridges_from_point failed for {point}: {e}")
             return gpd.GeoDataFrame()
@@ -523,7 +562,7 @@ class OSMDownloader:
                 return cached
 
         try:
-            gdf = ox.features_from_point(point, {"natural": "water", "waterway": True}, dist=self.dist)
+            gdf = self._features_from_point(point, {"natural": "water", "waterway": True})
         except Exception as e:
             print(f"[ERROR] water_from_point failed for {point}: {e}")
             return gpd.GeoDataFrame()
@@ -562,7 +601,7 @@ class OSMDownloader:
                 return cached
 
         try:
-            gdf = ox.features_from_point(point, {"leisure": "park"}, dist=self.dist)
+            gdf = self._features_from_point(point, {"leisure": "park"})
         except Exception as e:
             print(f"[ERROR] parks_from_point failed for {point}: {e}")
             return gpd.GeoDataFrame()
@@ -601,7 +640,7 @@ class OSMDownloader:
                 return cached
 
         try:
-            gdf = ox.features_from_point(point, {"railway": True}, dist=self.dist)
+            gdf = self._features_from_point(point, {"railway": True})
         except Exception as e:
             print(f"[ERROR] railways_from_point failed for {point}: {e}")
             return gpd.GeoDataFrame()
@@ -640,7 +679,7 @@ class OSMDownloader:
                 return cached
 
         try:
-            gdf = ox.features_from_point(point, {"natural": "tree"}, dist=self.dist)
+            gdf = self._features_from_point(point, {"natural": "tree"})
         except Exception as e:
             print(f"[ERROR] trees_from_point failed for {point}: {e}")
             return gpd.GeoDataFrame()
@@ -679,7 +718,7 @@ class OSMDownloader:
                 return cached
 
         try:
-            gdf = ox.features_from_point(point, tags, dist=self.dist)
+            gdf = self._features_from_point(point, tags)
         except Exception as e:
             print(f"[ERROR] features_from_point failed for {point}: {e}")
             return gpd.GeoDataFrame()

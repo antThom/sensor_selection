@@ -1,0 +1,654 @@
+defaults:
+
+  window: &window
+    width: 1.5
+    height: 1.3
+    thickness: 0.08
+    texture: [100, 149, 237, 150]
+
+  door: &door
+    width: 1.0
+    height: 2.2
+    thickness: 0.10
+    texture: "assets/textures/building_materials/door/wood_panel_door_glass.png"
+
+################################################################################
+# SINGLE FAMILY HOMES
+################################################################################
+
+single_family:
+
+  1_story:
+    ranch:
+      width: 14.0
+      depth: 10.0
+      wall:
+        height: 3.0
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\siding\\wood\\white_vinyl.png"
+        # right_wall_angle: "pi/2"
+      roof:
+        type: hip
+        roof_height: 1.2
+      front_openings:
+        - <<: *door
+          type: door
+          offset:
+            reference: left
+            margin: 2.0
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 2.0
+          z: 1.0
+
+      back_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+      left_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+      right_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+    bungalow:
+      width: 9.0
+      depth: 8.0
+      wall:
+        height: 3.2
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks101_1K-JPG\\Bricks101_1K-JPG_Color.jpg"
+      roof:
+        type: gable
+        roof_height: 2.3
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: left
+            margin: 2.0
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 1.5
+          z: 1.0
+
+      back_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+      left_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+      right_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+    cottage:
+      width: 8.0
+      depth: 7.0
+      wall:
+        height: 2.8
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\siding\\wood\\white_painted_siding.png"
+      roof:
+        type: gable
+        roof_height: 2.5
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: center
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 1.5
+          z: 1.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 1.5
+          z: 1.0
+
+      back_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+      left_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+      right_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.0
+
+  2_story:
+
+    colonial:
+
+      width: 11.0
+      depth: 9.0
+
+      wall:
+        height: 6.5
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+
+      roof:
+        type: gable
+        roof_height: 2.0
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: center
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 2.0
+          z: 1.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 2.0
+          z: 1.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 2.0
+          z: 4.2
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 2.0
+          z: 4.2
+
+      back_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 4.2
+
+      left_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 4.2
+
+      right_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 4.2
+
+    craftsman:
+
+      width: 12.0
+      depth: 10.0
+
+      wall:
+        height: 6.4
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\siding\\wood\\wood_siding.png"
+
+      roof:
+        type: gable
+        roof_height: 1.6
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: left
+            margin: 2.5
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 2.0
+          z: 1.2
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 2.5
+          z: 4.2
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 2.0
+          z: 4.2
+
+      back_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 4.2
+
+      left_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 4.2
+
+      right_openings:
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 4.2
+
+    modern:
+
+      width: 12.0
+      depth: 10.0
+
+      wall:
+        height: 6.5
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\siding\\stucco\\white_stucco.png"
+        left_wall_angle: "pi/2"
+        right_wall_angle: "pi/2"
+      roof:
+        type: flat
+        roof_height: 0.25
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: left
+            margin: 2.5
+          z: 0.0
+
+        - <<: *window
+          type: window
+          width: 3.0
+          height: 2.0
+          offset:
+            reference: right
+            margin: 2.0
+          z: 1.0
+
+        - <<: *window
+          type: window
+          width: 3.5
+          height: 1.6
+          offset:
+            reference: center
+          z: 4.5
+
+      back_openings:
+        - <<: *window
+          type: window
+          width: 3.0
+          offset:
+            reference: center
+          z: 4.0
+
+      left_openings: []
+
+      right_openings: []
+
+################################################################################
+# TOWNHOMES
+################################################################################
+
+townhome:
+
+  2_story:
+
+    row_home_middle:
+
+      width: 5.0
+      depth: 10.0
+
+      wall:
+        height: 6.7
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+        left_wall_angle: "pi/2"
+      roof:
+        type: flat
+        roof_height: 0.20
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: center
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 1.0
+          z: 1.25
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 1.0
+          z: 1.25
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 1.0
+          z: 4.5
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 1.0
+          z: 4.5
+
+      back_openings: []
+      left_openings: []
+      right_openings: []
+
+    row_home_end:
+
+      width: 5.5
+      depth: 10.0
+
+      wall:
+        height: 6.7
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+
+      roof:
+        type: flat
+        roof_height: 0.20
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: center
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 1.0
+          z: 1.25
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 1.0
+          z: 1.25
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 1.0
+          z: 4.5
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 1.0
+          z: 4.5
+
+      back_openings: []
+
+      left_openings:
+
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 1.25
+
+        - <<: *window
+          type: window
+          offset:
+            reference: center
+          z: 4.5
+
+      right_openings: []
+
+    duplex:
+
+      width: 10.0
+      depth: 10.0
+
+      wall:
+        height: 6.7
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+        left_wall_angle: "pi/2"
+
+      roof:
+        type: flat
+        roof_height: 0.20
+
+      front_openings:
+
+        - <<: *door
+          type: door
+          offset:
+            reference: left
+            margin: 2.0
+          z: 0.0
+
+        - <<: *door
+          type: door
+          offset:
+            reference: right
+            margin: 2.0
+          z: 0.0
+
+        - <<: *window
+          type: window
+          offset:
+            reference: left
+            margin: 2.0
+          z: 4.5
+
+        - <<: *window
+          type: window
+          offset:
+            reference: right
+            margin: 2.0
+          z: 4.5
+
+      back_openings: []
+      left_openings: []
+      right_openings: []
+
+################################################################################
+# APARTMENTS
+################################################################################
+
+apartment:
+
+  3_story:
+
+    walkup:
+
+      width: 16.0
+      depth: 12.0
+
+      wall:
+        height: 9.8
+        thickness: 0.25
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+        left_wall_angle: "pi/2"
+        right_wall_angle: "pi/2"
+        
+      roof:
+        type: flat
+        roof_height: 0.25
+
+      front_openings: []
+      back_openings: []
+      left_openings: []
+      right_openings: []
+
+################################################################################
+# COMMERCIAL
+################################################################################
+
+industrial:
+
+  1_story:
+
+    warehouse:
+
+      width: 30.0
+      depth: 20.0
+
+      wall:
+        height: 8.0
+        thickness: 0.30
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+
+      roof:
+        type: flat
+        roof_height: 0.50
+
+      front_openings: []
+      back_openings: []
+      left_openings: []
+      right_openings: []
+
+commercial:
+
+  1_story:
+
+    storefront:
+
+      width: 10.0
+      depth: 8.0
+
+      wall:
+        height: 4.0
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+        left_wall_angle: "pi/2"
+        right_wall_angle: "pi/2"
+
+      roof:
+        type: flat
+        roof_height: 0.25
+
+      front_openings: []
+      back_openings: []
+      left_openings: []
+      right_openings: []
+
+  2_story:
+
+    mixed_use:
+
+      width: 12.0
+      depth: 10.0
+
+      wall:
+        height: 7.2
+        thickness: 0.20
+        texture: "assets\\textures\\building_materials\\bricks\\Bricks097_1K-JPG\\Bricks097_1K-JPG_Color.jpg"
+        left_wall_angle: "pi/2"
+        right_wall_angle: "pi/2"
+      roof:
+        type: flat
+        roof_height: 0.25
+
+      front_openings: []
+      back_openings: []
+      left_openings: []
+      right_openings: []

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional, Any, Iterable
@@ -11,6 +12,13 @@ from shapely.geometry import Polygon, MultiPolygon, LineString, MultiLineString,
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import triangulate
 from shapely.geometry.polygon import orient
+import trimesh
+import yaml
+
+try:
+    from .house.house_gen import HOUSE_GEN
+except ImportError:
+    from house.house_gen import HOUSE_GEN
 
 from panda3d.core import (
     Geom,
@@ -21,6 +29,7 @@ from panda3d.core import (
     GeomVertexWriter,
     GeomVertexReader,
     NodePath,
+    Filename,
     Texture, 
     TexturePool, 
     TextureStage
@@ -184,6 +193,15 @@ class MeshAsset:
 
 
 class CityMeshBuilder:
+    HOUSE_CONFIG_PATH = Path(__file__).resolve().parent / "house" / "config" / "extended_house.yaml"
+    LANDUSE_HOUSE_TYPES = {
+        "residential": ("single_family", "1_story", "bungalow"),
+        "commercial": ("commercial", "2_story", "mixed_use"),
+        "retail": ("commercial", "1_story", "storefront"),
+        "industrial": ("industrial", "1_story", "warehouse"),
+        "townhome": ("townhome", "2_story", "duplex"),
+    }
+
     def __init__(
         self,
         terrain_sampler: Callable[[float, float], float],
@@ -196,6 +214,10 @@ class CityMeshBuilder:
         self.tile_size = 500.0
         self.tiles = {}
         self.root = NodePath("city_root")
+        with self.HOUSE_CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+            self.house_configs = yaml.safe_load(config_file)
+        self.house_generator = HOUSE_GEN.__new__(HOUSE_GEN)
+        self.house_texture_cache: dict[tuple[int, int, bytes], Texture] = {}
 
     def sample_ground_z(self, geom: BaseGeometry) -> float:
         x, y = _representative_xy(geom)
@@ -210,6 +232,112 @@ class CityMeshBuilder:
             tile_node = self.root.attachNewNode(f"tile_{ix}_{iy}")
             self.tiles[tile_key] = tile_node
         return self.tiles[tile_key]
+
+    @staticmethod
+    def _normalize_landuse(value) -> str | None:
+        value = _first_scalar(value)
+        if value is None or pd.isna(value):
+            return None
+        return str(value).split(";")[0].strip().lower() or None
+
+    def _house_config_for_landuse(self, landuse: str | None):
+        config_path = self.LANDUSE_HOUSE_TYPES.get(landuse)
+        if config_path is None:
+            return None, None
+
+        config = self.house_configs
+        for key in config_path:
+            config = config[key]
+        return config, "/".join(config_path)
+
+    def _make_house_node(self, scene: trimesh.Scene, footprint: Polygon, height: float, name: str) -> NodePath:
+        meshes = scene.dump()
+        if not meshes:
+            return NodePath(name)
+
+        source_bounds = scene.bounds
+        xmin, ymin, zmin = source_bounds[0]
+        xmax, ymax, zmax = source_bounds[1]
+        target_xmin, target_ymin, target_xmax, target_ymax = footprint.bounds
+        source_size = np.array([xmax - xmin, ymax - ymin, zmax - zmin], dtype=float)
+        target_size = np.array([
+            target_xmax - target_xmin,
+            target_ymax - target_ymin,
+            max(float(height), EPS),
+        ])
+        scale = np.divide(target_size, source_size, out=np.ones(3), where=source_size > EPS)
+        offset = np.array([target_xmin, target_ymin, 0.0]) - np.array([xmin, ymin, zmin]) * scale
+
+        root = NodePath(name)
+        texture_stage = TextureStage("house_texture")
+
+        for mesh_index, mesh in enumerate(meshes):
+            vertices = np.asarray(mesh.vertices, dtype=float) * scale + offset
+            faces = np.asarray(mesh.faces, dtype=int)
+            uv_data = getattr(mesh.visual, "uv", None)
+            face_colors = None
+            if getattr(mesh.visual, "kind", None) in ("face", "vertex"):
+                face_colors = np.asarray(mesh.visual.face_colors, dtype=np.uint8)
+
+            vdata = GeomVertexData(
+                f"{name}_{mesh_index}",
+                GeomVertexFormat.getV3n3c4t2(),
+                Geom.UHStatic,
+            )
+            vertex_writer = GeomVertexWriter(vdata, "vertex")
+            normal_writer = GeomVertexWriter(vdata, "normal")
+            color_writer = GeomVertexWriter(vdata, "color")
+            texcoord_writer = GeomVertexWriter(vdata, "texcoord")
+            triangles = GeomTriangles(Geom.UHStatic)
+
+            for face_index, face in enumerate(faces):
+                points = vertices[face]
+                normal = _face_normal(points[0], points[1], points[2])
+                color = (255, 255, 255, 255) if face_colors is None else face_colors[face_index]
+                if len(color) == 3:
+                    color = (*color, 255)
+
+                first_vertex = vdata.getNumRows()
+                for corner, vertex_index in enumerate(face):
+                    point = vertices[vertex_index]
+                    vertex_writer.addData3f(*map(float, point))
+                    normal_writer.addData3f(*map(float, normal))
+                    color_writer.addData4f(*(float(channel) / 255.0 for channel in color))
+                    uv = (0.0, 0.0) if uv_data is None else uv_data[vertex_index]
+                    texcoord_writer.addData2f(float(uv[0]), float(uv[1]))
+                triangles.addVertices(first_vertex, first_vertex + 1, first_vertex + 2)
+                triangles.closePrimitive()
+
+            geom = Geom(vdata)
+            geom.addPrimitive(triangles)
+            geom_node = GeomNode(f"{name}_{mesh_index}")
+            geom_node.addGeom(geom)
+            part = root.attachNewNode(geom_node)
+
+            material = getattr(mesh.visual, "material", None)
+            image = getattr(material, "image", None)
+            if image is not None and uv_data is not None:
+                from PIL import Image
+
+                if not isinstance(image, Image.Image):
+                    image = Image.fromarray(np.asarray(image))
+                image = image.convert("RGBA")
+                image_data = image.tobytes()
+                texture_key = (image.width, image.height, hashlib.sha256(image_data).digest())
+                texture = self.house_texture_cache.get(texture_key)
+                if texture is None:
+                    texture = Texture(f"house_texture_{len(self.house_texture_cache)}")
+                    texture.setup2dTexture(
+                        image.width,
+                        image.height,
+                        Texture.T_unsigned_byte,
+                        Texture.F_rgba,
+                    )
+                    texture.setRamImage(image_data)
+                    self.house_texture_cache[texture_key] = texture
+                part.setTexture(texture_stage, texture, 1)
+
+        return root
     
     def _make_geomnode_from_extrusion(self, geom: BaseGeometry, height: float, name: str, color: Optional[tuple[float, float, float, float]] = None,) -> NodePath:
         """
@@ -390,15 +518,21 @@ class CityMeshBuilder:
                 base_z = self.sample_ground_z(poly)
                 ground_cache[cache_key] = base_z
 
-            node = self._make_geomnode_from_extrusion(
-                poly, height, f"building_{asset_start + asset_idx}"
-            )
+            landuse_tag = self._normalize_landuse(getattr(row, "landuse_tag", None))
+            house_config, house_type = self._house_config_for_landuse(landuse_tag)
+            if house_config is None and landuse_tag is None and height >= 8.0:
+                house_config, house_type = self._house_config_for_landuse("townhome")
+
+            building_name = f"building_{asset_start + asset_idx}"
+            if house_config is not None:
+                house_scene = self.house_generator.create_house(house_config)
+                node = self._make_house_node(house_scene, poly, height, building_name)
+            else:
+                node = self._make_geomnode_from_extrusion(poly, height, building_name)
             node.setZ(base_z)
 
-            landuse_tag = getattr(row, "landuse_tag", None)
-
             building = BuildingAsset(
-                name=f"building_{asset_start + asset_idx}",
+                name=building_name,
                 nodepath=node,
                 source_index=asset_idx,
                 height_m=float(height),
@@ -410,6 +544,7 @@ class CityMeshBuilder:
                     "base_z": float(base_z),
                     "landuse_tag": landuse_tag,
                     "building": getattr(row, "building", None),
+                    "house_type": house_type,
                 },
             )
 
@@ -578,52 +713,59 @@ class CityMeshBuilder:
             
     def _write_obj_from_nodepath(self, nodepath: NodePath, fh, object_name: str, vertex_offset: int) -> int:
         node = nodepath.node()
-        if not hasattr(node, "getNumGeoms"):
+        if isinstance(node, GeomNode):
+            geom_paths = [nodepath]
+        else:
+            geom_paths = list(nodepath.findAllMatches("**/+GeomNode"))
+        if not geom_paths:
             return vertex_offset
 
         fh.write(f"o {object_name}\n")
         fh.write(f"g {object_name}\n")
 
-        for geom_index in range(node.getNumGeoms()):
-            geom = node.getGeom(geom_index)
-            vdata = geom.getVertexData()
-            vreader = GeomVertexReader(vdata, "vertex")
+        for geom_path in geom_paths:
+            geom_node = geom_path.node()
+            transform = geom_path.getMat(self.root)
+            for geom_index in range(geom_node.getNumGeoms()):
+                geom = geom_node.getGeom(geom_index)
+                vdata = geom.getVertexData()
+                vreader = GeomVertexReader(vdata, "vertex")
 
-            nreader = None
-            try:
-                nreader = GeomVertexReader(vdata, "normal")
-            except Exception:
                 nreader = None
+                try:
+                    nreader = GeomVertexReader(vdata, "normal")
+                except Exception:
+                    nreader = None
 
-            local_vertices = []
-            local_normals = []
+                local_vertices = []
+                local_normals = []
 
-            while not vreader.isAtEnd():
-                v = vreader.getData3f()
-                local_vertices.append((float(v[0]), float(v[1]), float(v[2])))
+                while not vreader.isAtEnd():
+                    vertex = transform.xformPoint(vreader.getData3f())
+                    local_vertices.append((float(vertex[0]), float(vertex[1]), float(vertex[2])))
 
-                if nreader is not None and not nreader.isAtEnd():
-                    n = nreader.getData3f()
-                    local_normals.append((float(n[0]), float(n[1]), float(n[2])))
+                    if nreader is not None and not nreader.isAtEnd():
+                        normal = nreader.getData3f()
+                        local_normals.append((float(normal[0]), float(normal[1]), float(normal[2])))
 
-            for vx, vy, vz in local_vertices:
-                fh.write(f"v {vx:.6f} {vy:.6f} {vz:.6f}\n")
-            for nx, ny, nz in local_normals:
-                fh.write(f"vn {nx:.6f} {ny:.6f} {nz:.6f}\n")
+                for vx, vy, vz in local_vertices:
+                    fh.write(f"v {vx:.6f} {vy:.6f} {vz:.6f}\n")
+                for nx, ny, nz in local_normals:
+                    fh.write(f"vn {nx:.6f} {ny:.6f} {nz:.6f}\n")
 
-            for prim_index in range(geom.getNumPrimitives()):
-                prim = geom.getPrimitive(prim_index)
-                for p in range(prim.getNumPrimitives()):
-                    s = prim.getPrimitiveStart(p)
-                    e = prim.getPrimitiveEnd(p)
-                    if e - s != 3:
-                        continue
-                    i0 = prim.getVertex(s + 0) + 1 + vertex_offset
-                    i1 = prim.getVertex(s + 1) + 1 + vertex_offset
-                    i2 = prim.getVertex(s + 2) + 1 + vertex_offset
-                    fh.write(f"f {i0} {i1} {i2}\n")
+                for prim_index in range(geom.getNumPrimitives()):
+                    prim = geom.getPrimitive(prim_index)
+                    for primitive_index in range(prim.getNumPrimitives()):
+                        start = prim.getPrimitiveStart(primitive_index)
+                        end = prim.getPrimitiveEnd(primitive_index)
+                        if end - start != 3:
+                            continue
+                        i0 = prim.getVertex(start) + 1 + vertex_offset
+                        i1 = prim.getVertex(start + 1) + 1 + vertex_offset
+                        i2 = prim.getVertex(start + 2) + 1 + vertex_offset
+                        fh.write(f"f {i0} {i1} {i2}\n")
 
-            vertex_offset += len(local_vertices)
+                vertex_offset += len(local_vertices)
 
         return vertex_offset
     
@@ -648,7 +790,7 @@ class CityMeshBuilder:
 
         # if flatten:
         #     self.root.flattenStrong()
-        self.root.writeBamFile(str(out_path))
+        self.root.writeBamFile(Filename.fromOsSpecific(str(out_path.resolve())))
         return out_path
     
     def export_obj(self, filename: str = "city.obj") -> Path:
@@ -754,6 +896,8 @@ class CityMeshBuilder:
         )
 
         for building in self.buildings:
+            if building.metadata.get("house_type"):
+                continue
             tex_path = texture_library.select(building)
             tex = self._load_texture(str(tex_path))
             building.nodepath.setTexture(tex_stage, tex, 1)

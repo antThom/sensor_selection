@@ -9,27 +9,49 @@ from panda3d.core import (
     CollisionHandlerQueue,
     BitMask32,
     TextNode,
+    ClockObject,
+    TextureAttrib,
 )
+import argparse
 from pathlib import Path
 from math import sin, cos, radians
 import sys
 
 
 class BamViewer(ShowBase):
-    def __init__(self, bam_path: str):
+    def __init__(self, bam_path):
         super().__init__()
 
         self.disableMouse()
         self.setFrameRateMeter(True)
 
         self.root = self.loader.loadModel(bam_path)
+        if self.root.isEmpty():
+            raise FileNotFoundError(f"Could not load BAM model: {bam_path}")
         self.root.reparentTo(self.render)
 
         # Camera state
         self.cam_yaw = 0.0
         self.cam_pitch = -20.0
-        self.cam_distance = 300.0
-        self.cam_pos = [0.0, -300.0, 120.0]
+        bounds = self.root.getTightBounds()
+        if bounds:
+            lower, upper = bounds
+            self.scene_center = (lower + upper) * 0.5
+            scene_size = upper - lower
+            self.cam_distance = max(scene_size.length() * 1.25, 30.0)
+            self.cam_pos = [
+                self.scene_center.x,
+                self.scene_center.y - self.cam_distance,
+                self.scene_center.z + self.cam_distance * 0.35,
+            ]
+        else:
+            self.scene_center = self.root.getPos(self.render)
+            self.cam_distance = 30.0
+            self.cam_pos = [self.scene_center.x, self.scene_center.y - 30.0, self.scene_center.z + 12.0]
+        self.camera.setPos(*self.cam_pos)
+        self.camera.lookAt(self.scene_center)
+        self.cam_yaw = self.camera.getH()
+        self.cam_pitch = self.camera.getP()
 
         # Movement state
         self.keys = {
@@ -62,7 +84,7 @@ class BamViewer(ShowBase):
             self.accept(f"{key}-up", self._set_key, [key, False])
 
         # Toggles
-        self.accept("w", self.toggle_wireframe)
+        self.accept("f", self.toggle_wireframe)
         self.accept("t", self.toggle_textures)
         self.accept("b", self.toggle_bounds)
         # self.accept("l", self.dump_scene_graph)
@@ -74,7 +96,7 @@ class BamViewer(ShowBase):
         self._set_help_text()
 
     def _set_help_text(self):
-        cm = self.addScreenText(0.02, 0.96, "W: wireframe   T: textures   B: bounds   L: ls()   Mouse drag: orbit   WASD: move")
+        cm = self.addScreenText(0.02, 0.96, "F: wireframe   T: textures   B: bounds   Mouse drag: orbit   WASD: pan")
         cm.setScale(0.05)
 
     def addScreenText(self, x, y, text):
@@ -98,7 +120,7 @@ class BamViewer(ShowBase):
     def toggle_textures(self):
         self.textures_on = not self.textures_on
         if self.textures_on:
-            self.root.setTextureOff(0)
+            self.root.clearAttrib(TextureAttrib)
         else:
             self.root.setTextureOff(1)
 
@@ -157,9 +179,8 @@ class BamViewer(ShowBase):
         return Task.cont
 
     def update_camera_task(self, task):
-        dt = globalClock.getDt()
+        dt = ClockObject.getGlobalClock().getDt()
         move_speed = 120.0 * dt * (3.0 if self.keys["shift"] else 1.0)
-        rot_speed = 180.0 * dt
 
         # Mouse orbit
         if self.mouseWatcherNode.hasMouse():
@@ -176,29 +197,34 @@ class BamViewer(ShowBase):
 
         # Keyboard movement in camera frame
         heading = radians(self.cam_yaw)
-        forward = (sin(heading), -cos(heading))
-        right = (cos(heading), sin(heading))
+        forward = (sin(heading), cos(heading))
+        right = (cos(heading), -sin(heading))
 
         if self.keys["w"]:
-            self.cam_pos[0] += forward[0] * move_speed
-            self.cam_pos[1] += forward[1] * move_speed
+            self.scene_center.x += forward[0] * move_speed
+            self.scene_center.y += forward[1] * move_speed
         if self.keys["s"]:
-            self.cam_pos[0] -= forward[0] * move_speed
-            self.cam_pos[1] -= forward[1] * move_speed
+            self.scene_center.x -= forward[0] * move_speed
+            self.scene_center.y -= forward[1] * move_speed
         if self.keys["d"]:
-            self.cam_pos[0] += right[0] * move_speed
-            self.cam_pos[1] += right[1] * move_speed
+            self.scene_center.x += right[0] * move_speed
+            self.scene_center.y += right[1] * move_speed
         if self.keys["a"]:
-            self.cam_pos[0] -= right[0] * move_speed
-            self.cam_pos[1] -= right[1] * move_speed
+            self.scene_center.x -= right[0] * move_speed
+            self.scene_center.y -= right[1] * move_speed
         if self.keys["e"]:
-            self.cam_pos[2] += move_speed
+            self.scene_center.z += move_speed
         if self.keys["q"]:
-            self.cam_pos[2] -= move_speed
+            self.scene_center.z -= move_speed
 
-        # Apply camera pose
+        horizontal_distance = self.cam_distance * cos(radians(self.cam_pitch))
+        self.cam_pos = [
+            self.scene_center.x - sin(heading) * horizontal_distance,
+            self.scene_center.y - cos(heading) * horizontal_distance,
+            self.scene_center.z - sin(radians(self.cam_pitch)) * self.cam_distance,
+        ]
         self.camera.setPos(*self.cam_pos)
-        self.camera.setHpr(self.cam_yaw, self.cam_pitch, 0)
+        self.camera.lookAt(self.scene_center)
 
         return Task.cont
 
@@ -218,14 +244,22 @@ def safe_path(path_like: str | Path, base_dir: str | Path | None = None) -> Path
 
     return p.resolve()
 
+def main() -> None:
+    default_bam = Path(__file__).resolve().parent / "assets" / "Terrain" / "Generate" / "baltimore" / "baltimore.bam"
+    parser = argparse.ArgumentParser(description="View a Panda3D BAM scene.")
+    parser.add_argument("bam_file", nargs="?", type=Path, default=default_bam, help="BAM file to display")
+    args = parser.parse_args()
+
+    bam_file = args.bam_file.expanduser()
+    if not bam_file.is_absolute():
+        bam_file = Path(__file__).parent / bam_file
+    bam_file = bam_file.expanduser().resolve()
+    if not bam_file.is_file():
+        parser.error(f"BAM file does not exist: {bam_file}")
+
+    app = BamViewer(bam_file)
+    app.run()
 
 
 if __name__ == "__main__":
-    # if len(sys.argv) < 2:
-    #     print("Usage: python view_bam.py path/to/model.bam")
-    #     raise SystemExit(1)
-    # bam_file = Path("assets/Terrain/Generate/baltimore/tile_006_006/tile_006_006.bam")
-    # bam_file = Path("assets/Terrain/Generate/baltimore/baltimore.bam")
-    bam_file = safe_path("assets\Terrain\Generate\baltimore\tile_000_004\tile_000_004.obj", base_dir=Path(__file__).parent)
-    app = BamViewer(bam_file)
-    app.run()
+    main()

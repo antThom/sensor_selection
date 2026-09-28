@@ -7,6 +7,7 @@ import ctypes
 import pyglet
 import yaml
 from pathlib import Path
+from typing import Dict
 from pyglet.gl import GL_REPEAT, GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE
 
 def maximize_viewer(dt):
@@ -18,29 +19,81 @@ def maximize_viewer(dt):
         ctypes.windll.user32.ShowWindow(hwnd, SW_MAXIMIZE)
 
 class HOUSE_GEN():
-    def __init__(self,width=10.0, depth=8.0, wall_height=3.0, wall_thickness=0.20,roof_height=2.0, config_file=None):
-        default_house_yaml=Path("assets","Terrain","Generate","house","config","houses.yaml")
-        if default_house_yaml.exists:
-            print(f"houses.yaml file is found and the selected house is {config_file}")
-            with open(str(default_house_yaml), "r") as file:
-                default_houses_config = yaml.safe_load(file)
+    # Default configuration values - tries first path, falls back to second
+    DEFAULT_CONFIG_PATH = Path("assets", "Terrain", "Generate", "house", "config", "extended_house.yaml")
+    DEFAULT_HOUSE_PATHS = [
+        # ("single_family", "1_story", "basic"),
+        ("apartment", "3_story", "walkup"),
+    ]
+    
+    def __init__(self, width=10.0, depth=8.0, wall_height=3.0, wall_thickness=0.20, roof_height=2.0, config_file=None):
+        """Initialize house generator with configuration from YAML or parameters."""
+        if config_file:
+            self.scene = self._load_from_file(config_file)
         else:
-            print(f"houses.yaml was not found: {default_house_yaml}")
-            return
-        
-        if config_file is None:
-            house = default_houses_config["single_family"]["1_story"]["basic"]
-            self.scene = self.create_house(
-                house["width"],
-                house["depth"],
-                wall_height,
-                wall_thickness,
-                roof_height,
-            )
-        else:
+            self.scene = self._load_default_or_create(self.DEFAULT_CONFIG_PATH)
+    
+    def _load_from_file(self, config_file: str) -> trimesh.Scene:
+        """Load house configuration from a YAML file."""
+        try:
             with open(str(config_file), "r") as file:
                 config = yaml.safe_load(file)
+                print(f"Loaded custom house configuration from {config_file}")
+                return self.create_house(config)
+        except FileNotFoundError:
+            print(f"Configuration file not found: {config_file}")
+            raise
+    
+    def _load_default_or_create(self, config_path: Path) -> trimesh.Scene:
+        """Load default house configuration or create empty scene."""
+        if not config_path.exists():
+            print(f"Configuration file not found: {config_path}")
+            raise FileNotFoundError(f"Config file not found at {config_path}")
+        
+        try:
+            with open(str(config_path), "r") as file:
+                config = yaml.safe_load(file)
+        except (FileNotFoundError, yaml.YAMLError) as e:
+            print(f"Error loading configuration file: {e}")
+            raise
 
+        # Try each default house path in order
+        for house_path in self.DEFAULT_HOUSE_PATHS:
+            try:
+                house = config
+                for key in house_path:
+                    house = house[key]
+                print(f"Loaded default house configuration: {house_path}")
+                return self.create_house(house)
+            except KeyError:
+                continue
+        
+        # If none of the paths work, show available options
+        print(f"Error: Could not find any of the default house configurations in {config_path}")
+        print(f"Tried paths: {self.DEFAULT_HOUSE_PATHS}")
+        raise KeyError(f"No valid house configuration found. Available paths: {self.DEFAULT_HOUSE_PATHS}")
+
+    def resolve_offset(self, opening, wall_width):
+        offset = opening["offset"]
+
+        # Old format
+        if isinstance(offset, (int, float)):
+            return offset
+
+        reference = offset["reference"]
+        margin = offset.get("margin", 0.0)
+
+        if reference == "left":
+            return margin
+
+        if reference == "center":
+            return wall_width / 2.0
+
+        if reference == "right":
+            return wall_width - margin
+
+        raise ValueError(f"Unknown offset reference '{reference}'")
+    
     def make_box(self,
         size: tuple[float, float, float],
         center: tuple[float, float, float],
@@ -118,72 +171,32 @@ class HOUSE_GEN():
 
             return (coords - uv_min) / extent
 
-        # X-facing surfaces: use Y/Z for UV
-        mask = axes == 0
-        if np.any(mask):
+        def apply_uv_for_axis(axis_index, coord_indices):
+            """Apply UV mapping for a specific axis."""
+            mask = axes == axis_index
+            if not np.any(mask):
+                return
+                
             fv = face_vertices[mask]
-
-            coords = np.stack(
-                (
-                    fv[:, :, 1],
-                    fv[:, :, 2],
-                ),
-                axis=-1,
-            )
-
-            if style.lower() == "clamp":
-                # Normalize each surface to [0,1]
-                coords_flat = coords.reshape(-1, 2)
-                coords_flat = normalize_uv(coords_flat)
-                uv = coords_flat.reshape(coords.shape)
-            else:
-                uv = coords * scale
-
-            uvs[faces[mask]] = uv
-
-        # Y-facing surfaces: use X/Z for UV
-        mask = axes == 1
-        if np.any(mask):
-            fv = face_vertices[mask]
-
-            coords = np.stack(
-                (
-                    fv[:, :, 0],
-                    fv[:, :, 2],
-                ),
-                axis=-1,
-            )
-
-            if style.lower() == "clamp":
-                coords_flat = coords.reshape(-1, 2)
-                coords_flat = normalize_uv(coords_flat)
-                uv = coords_flat.reshape(coords.shape)
-            else:
-                uv = coords * scale
-
-            uvs[faces[mask]] = uv
+            coords = np.stack([fv[:, :, i] for i in coord_indices], axis=-1)
             
-        # Z-facing surfaces: use X/Y for UV
-        mask = axes == 2
-        if np.any(mask):
-            fv = face_vertices[mask]
-
-            coords = np.stack(
-                (
-                    fv[:, :, 0],
-                    fv[:, :, 1],
-                ),
-                axis=-1,
-            )
-
             if style.lower() == "clamp":
                 coords_flat = coords.reshape(-1, 2)
                 coords_flat = normalize_uv(coords_flat)
                 uv = coords_flat.reshape(coords.shape)
             else:
                 uv = coords * scale
-
+            
             uvs[faces[mask]] = uv
+
+        # X-facing surfaces: use Y/Z for UV
+        apply_uv_for_axis(0, [1, 2])
+        
+        # Y-facing surfaces: use X/Z for UV
+        apply_uv_for_axis(1, [0, 2])
+        
+        # Z-facing surfaces: use X/Y for UV
+        apply_uv_for_axis(2, [0, 1])
             
         # Assign UVs and material to mesh
         mesh.visual = trimesh.visual.texture.TextureVisuals(
@@ -282,78 +295,17 @@ class HOUSE_GEN():
         thickness: float = 0.08,
         texture: str = ""
     ) -> trimesh.Trimesh:
-
-        frame = 0.10
-
-        parts = []
-
+        """Create a door with optional texture."""
         # Door slab
-        parts.append(
-            self.make_box(
-                (
-                    width,
-                    thickness,
-                    height,
-                ),
-                (
-                    0,
-                    0,
-                    height / 2,
-                ),
-            )
+        door_slab = self.make_box(
+            (width, thickness, height),
+            (0, 0, height / 2),
         )
-        if texture != "":
-            parts[0] = self.apply_box_texture(parts[0], texture, 1.0, "clamp")
+        
+        if texture:
+            door_slab = self.apply_box_texture(door_slab, texture, 1.0, "clamp")
 
-        # # Left frame
-        # parts.append(
-        #     make_box(
-        #         (
-        #             frame,
-        #             thickness * 1.5,
-        #             height,
-        #         ),
-        #         (
-        #             -width / 2,
-        #             0,
-        #             height / 2,
-        #         ),
-        #     )
-        # )
-
-        # # Right frame
-        # parts.append(
-        #     make_box(
-        #         (
-        #             frame,
-        #             thickness * 1.5,
-        #             height,
-        #         ),
-        #         (
-        #             width / 2,
-        #             0,
-        #             height / 2,
-        #         ),
-        #     )
-        # )
-
-        # # Top frame
-        # parts.append(
-        #     make_box(
-        #         (
-        #             width,
-        #             thickness * 1.5,
-        #             frame,
-        #         ),
-        #         (
-        #             0,
-        #             0,
-        #             height,
-        #         ),
-        #     )
-        # )
-
-        return trimesh.util.concatenate(parts)
+        return door_slab
 
 
 
@@ -383,7 +335,6 @@ class HOUSE_GEN():
             position = (x, 0)
 
         Opening format:
-
             {
                 "type": "window" | "door",
                 "offset": 3.0,
@@ -393,182 +344,144 @@ class HOUSE_GEN():
             }
 
         offset is distance along the wall from its minimum coordinate.
+        Supports stacked openings (same X, different Z).
         """
-
         wall_parts = []
 
-        # Sort openings along the wall
-        openings = sorted(openings, key=lambda o: o["offset"])
+        if not openings:
+            # No openings, create solid wall
+            return self.make_box(
+                (length, thickness, height),
+                (length / 2, position[0], z_min + height / 2)
+            )
 
-        current = 0.0
-
+        # Resolve and sort openings
+        resolved_openings = []
         for opening in openings:
+            opening_copy = opening.copy()
+            opening_copy["offset"] = self.resolve_offset(opening, length)
+            resolved_openings.append(opening_copy)
 
+        # Sort by offset (X position), then by Z height
+        resolved_openings.sort(key=lambda o: (o["offset"], o["z"]))
+        
+        # Group openings by their X position to handle stacking
+        opening_groups = {}  # offset -> list of openings at that offset
+        for opening in resolved_openings:
             offset = opening["offset"]
-            width = opening["width"]
-            wz0 = opening["z"]
-            wz1 = wz0 + opening["height"]
-
-            opening_start = offset - width / 2
-            opening_end = offset + width / 2
+            if offset not in opening_groups:
+                opening_groups[offset] = []
+            opening_groups[offset].append(opening)
+        
+        # Process each opening group
+        current = 0.0
+        
+        for offset in sorted(opening_groups.keys()):
+            openings_at_offset = opening_groups[offset]
+            
+            # Get the bounds of this opening group
+            min_width = min(o["width"] for o in openings_at_offset)
+            max_width = max(o["width"] for o in openings_at_offset)
+            # Use the first opening's width for the wall segment cutout
+            group_width = openings_at_offset[0]["width"]
+            
+            opening_start = offset - group_width / 2
+            opening_end = offset + group_width / 2
 
             # ----------------------------------------------------------
-            # WALL TO LEFT / FRONT OF OPENING
+            # WALL SECTION BEFORE THIS OPENING GROUP
             # ----------------------------------------------------------
-
             if opening_start > current:
-
                 segment_length = opening_start - current
-
-                if axis == "x":
-                    center = (
-                        current + segment_length / 2,
-                        position[0],
-                        z_min + height / 2,
-                    )
-
-                    size = (
-                        segment_length,
-                        thickness,
-                        height,
-                    )
-
-                else:
-                    center = (
-                        position[0],
-                        current + segment_length / 2,
-                        z_min + height / 2,
-                    )
-
-                    size = (
-                        thickness,
-                        segment_length,
-                        height,
-                    )
-
-                wall_parts.append(
-                    self.make_box(size, center)
-                )
+                wall_parts.append(self._create_wall_segment(
+                    axis, position, current, segment_length, height, thickness, z_min
+                ))
 
             # ----------------------------------------------------------
-            # WALL BELOW OPENING
+            # PROCESS STACKED OPENINGS AT THIS X POSITION
             # ----------------------------------------------------------
-
-            if wz0 > z_min:
-
-                segment_height = wz0 - z_min
-
-                if axis == "x":
-                    center = (
-                        offset,
-                        position[0],
-                        z_min + segment_height / 2,
-                    )
-
-                    size = (
-                        width,
-                        thickness,
-                        segment_height,
-                    )
-
-                else:
-                    center = (
-                        position[0],
-                        offset,
-                        z_min + segment_height / 2,
-                    )
-
-                    size = (
-                        thickness,
-                        width,
-                        segment_height,
-                    )
-
-                wall_parts.append(
-                    self.make_box(size, center)
-                )
-
-            # ----------------------------------------------------------
-            # WALL ABOVE OPENING
-            # ----------------------------------------------------------
-
-            if wz1 < z_min + height:
-
-                segment_height = z_min + height - wz1
-
-                if axis == "x":
-                    center = (
-                        offset,
-                        position[0],
-                        wz1 + segment_height / 2,
-                    )
-
-                    size = (
-                        width,
-                        thickness,
-                        segment_height,
-                    )
-
-                else:
-                    center = (
-                        position[0],
-                        offset,
-                        wz1 + segment_height / 2,
-                    )
-
-                    size = (
-                        thickness,
-                        width,
-                        segment_height,
-                    )
-
-                wall_parts.append(
-                    self.make_box(size, center)
-                )
+            # Sort by Z height within this group
+            openings_at_offset.sort(key=lambda o: o["z"])
+            
+            current_z = z_min
+            for opening in openings_at_offset:
+                wz0 = opening["z"]
+                wz1 = wz0 + opening["height"]
+                
+                # Create wall segment BELOW this opening (if there's a gap)
+                if wz0 > current_z:
+                    gap_height = wz0 - current_z
+                    wall_parts.append(self._create_opening_frame_segment(
+                        axis, position, offset, group_width, gap_height, thickness, current_z
+                    ))
+                
+                # Update current_z to the top of this opening
+                current_z = max(current_z, wz1)
+            
+            # Create wall segment ABOVE all openings in this group
+            if current_z < z_min + height:
+                gap_height = z_min + height - current_z
+                wall_parts.append(self._create_opening_frame_segment(
+                    axis, position, offset, group_width, gap_height, thickness, current_z
+                ))
 
             current = opening_end
 
         # --------------------------------------------------------------
-        # FINAL WALL SECTION
+        # FINAL WALL SECTION (after last opening group)
         # --------------------------------------------------------------
-
         if current < length:
-
             segment_length = length - current
+            wall_parts.append(self._create_wall_segment(
+                axis, position, current, segment_length, height, thickness, z_min
+            ))
 
-            if axis == "x":
+        return trimesh.util.concatenate(wall_parts) if wall_parts else trimesh.Trimesh()
 
-                center = (
-                    current + segment_length / 2,
-                    position[0],
-                    z_min + height / 2,
-                )
+    def _create_wall_segment(
+        self,
+        axis: str,
+        position: tuple[float, float],
+        segment_start: float,
+        segment_length: float,
+        height: float,
+        thickness: float,
+        z_min: float,
+    ) -> trimesh.Trimesh:
+        """Create a wall segment along the specified axis."""
+        if axis == "x":
+            # Wall runs along X axis
+            center = (segment_start + segment_length / 2, position[0], z_min + height / 2)
+            size = (segment_length, thickness, height)
+            wall_segment = self.make_box(size, center)
+        else:  # axis == "y"
+            # Wall runs along Y axis
+            center = (position[0], segment_start + segment_length / 2, z_min + height / 2)
+            size = (thickness, segment_length, height)
+            wall_segment = self.make_box(size, center)
+      
+                
+        return wall_segment
 
-                size = (
-                    segment_length,
-                    thickness,
-                    height,
-                )
-
-            else:
-
-                center = (
-                    position[0],
-                    current + segment_length / 2,
-                    z_min + height / 2,
-                )
-
-                size = (
-                    thickness,
-                    segment_length,
-                    height,
-                )
-
-            wall_parts.append(
-                self.make_box(size, center)
-            )
-
-        return trimesh.util.concatenate(wall_parts)
+    def _create_opening_frame_segment(
+        self,
+        axis: str,
+        position: tuple[float, float],
+        offset: float,
+        width: float,
+        height: float,
+        thickness: float,
+        z_start: float,
+    ) -> trimesh.Trimesh:
+        """Create a wall segment around an opening (above/below)."""
+        if axis == "x":
+            center = (offset, position[0], z_start + height / 2)
+            size = (width, thickness, height)
+        else:  # axis == "y"
+            center = (position[0], offset, z_start + height / 2)
+            size = (thickness, width, height)
+        
+        return self.make_box(size, center)
 
 
     # ================================================================
@@ -588,125 +501,45 @@ class HOUSE_GEN():
         """
         Add visual window/door geometry to the opening.
 
-        wall:
-            "front"
-            "back"
-            "left"
-            "right"
+        wall: "front", "back", "left", or "right"
         """
-
         width = opening["width"]
         height = opening["height"]
-        offset = opening["offset"]
         thickness = opening["thickness"]
         z = opening["z"]
+        
+        # Resolve offset based on wall length
+        if wall in ("front", "back"):
+            wall_length = house_width
+        else:  # "left", "right"
+            wall_length = house_depth - 2 * wall_thickness
+        
+        offset = self.resolve_offset(opening, wall_length)
 
         if opening["type"] == "window":
-
-            opening_mesh = self.create_window(
-                width,
-                height,
-                thickness
-            )
-
+            opening_mesh = self.create_window(width, height, thickness)
         elif opening["type"] == "door":
-
-            opening_mesh = self.create_door(
-                width,
-                height,
-                thickness,
-                opening['texture']
-            )
-
+            opening_mesh = self.create_door(width, height, thickness, opening.get("texture", ""))
         else:
+            raise ValueError(f"Unknown opening type: {opening['type']}")
 
-            raise ValueError(
-                f"Unknown opening type: {opening['type']}"
-            )
-
-        # --------------------------------------------------------------
-        # FRONT
-        # --------------------------------------------------------------
-
+        # Position mesh based on wall
         if wall == "front":
-            opening_mesh.apply_translation(
-                (
-                    offset,
-                    thickness/2,
-                    z,
-                )
-            )
-
-        # --------------------------------------------------------------
-        # BACK
-        # --------------------------------------------------------------
-
+            opening_mesh.apply_translation((offset, thickness / 2, z))
         elif wall == "back":
-
-            # opening_mesh.apply_transform(
-            #     trimesh.transformations.rotation_matrix(
-            #         -np.pi / 2,
-            #         [1, 0, 0],
-            #     )
-            # )
-
-            opening_mesh.apply_translation(
-                (
-                    offset,
-                    house_depth - thickness / 2,
-                    z,
-                )
-            )
-
-        # --------------------------------------------------------------
-        # LEFT
-        # --------------------------------------------------------------
-
+            opening_mesh.apply_translation((offset, house_depth - thickness / 2, z))
         elif wall == "left":
-                        
             opening_mesh.apply_transform(
-                trimesh.transformations.rotation_matrix(
-                    np.pi / 2,
-                    [0, 0, 1],
-                )
+                trimesh.transformations.rotation_matrix(np.pi / 2, [0, 0, 1])
             )
-            
-            opening_mesh.apply_translation(
-                (
-                    thickness/2,
-                    offset + wall_thickness,
-                    z,
-                )
-            )
-
-            
-            
-
-        # --------------------------------------------------------------
-        # RIGHT
-        # --------------------------------------------------------------
-
+            opening_mesh.apply_translation((thickness / 2, offset + wall_thickness, z))
         elif wall == "right":
-
             opening_mesh.apply_transform(
-                trimesh.transformations.rotation_matrix(
-                    -np.pi / 2,
-                    [0, 0, 1],
-                )
+                trimesh.transformations.rotation_matrix(-np.pi / 2, [0, 0, 1])
             )
+            opening_mesh.apply_translation((house_width - thickness / 2, offset + wall_thickness, z))
 
-            opening_mesh.apply_translation(
-                (
-                    house_width - thickness/2,
-                    offset + wall_thickness,
-                    z,
-                )
-            )
-
-        scene.add_geometry(
-            opening_mesh,
-            node_name=f"{wall}_{opening['type']}_{num}",
-        )
+        scene.add_geometry(opening_mesh, node_name=f"{wall}_{opening['type']}_{num}")
 
 
     # --------------------------------------------------------
@@ -714,86 +547,43 @@ class HOUSE_GEN():
     # --------------------------------------------------------
     def create_house(
         self,
-        width: float = 10.0,
-        depth: float = 8.0,
-        wall_height: float = 3.0,
-        wall_thickness: float = 0.20,
-        roof_height: float = 2.0,
+        house_config: Dict = None,
         wall_path: str = "assets//textures//building_materials//bricks//Bricks097_1K-JPG//Bricks097_1K-JPG_Color.jpg",
         door_path: str = "assets//textures//building_materials//door//wood_panel_door_glass.png",
         roof_path: str = "assets//textures//building_materials//roof//roof_shingles.png"
     ) -> trimesh.Scene:
         scene = trimesh.Scene()
+        
+        # Extract configuration once to avoid repeated .get() calls
+        width = house_config.get("width", 10.0)
+        depth = house_config.get("depth", 10.0)
+        wall_config = house_config.get("wall", {})
+        wall_height = wall_config.get("height", 3.0)
+        wall_thickness = wall_config.get("thickness", 0.2)
+        left_wall_angle = wall_config.get("left_wall_angle", 0)
+        if left_wall_angle != 0.0:
+            left_wall_angle = np.pi/2
+        right_wall_angle = wall_config.get("right_wall_angle", 0)
+        if right_wall_angle != 0.0 and right_wall_angle != "pi/2":
+            right_wall_angle = np.pi
+        elif right_wall_angle == "pi/2":
+            right_wall_angle = np.pi/2
+        roof_config = house_config.get("roof", {})
+        roof_height = roof_config.get("roof_height", 2.0)
+        roof_type = roof_config.get("type", "gable")
+        wall_path = wall_config.get("texture", wall_path)
 
         # ============================================================
         # OPENINGS
         # ============================================================
-
-        front_openings = [
-            {
-                "type": "door",
-                "offset": width / 2,
-                "z": 0.0,
-                "width": 1.0,
-                "height": 2.2,
-                "thickness": 0.1,
-                "texture": door_path
-            },
-            {
-                "type": "window",
-                "offset": 2.0,
-                "z": 1.0,
-                "width": 1.5,
-                "height": 1.3,
-                "thickness": 0.08
-            },
-            {
-                "type": "window",
-                "offset": width - 2.0,
-                "z": 1.0,
-                "width": 1.5,
-                "height": 1.3,
-                "thickness": 0.08
-            },
-        ]
-
-        back_openings = [
-            {
-                "type": "window",
-                "offset": width / 2,
-                "z": 1.0,
-                "width": 2.0,
-                "height": 1.3,
-                "thickness": 0.08
-            }
-        ]
-
-        left_openings = [
-            {
-                "type": "window",
-                "offset": depth / 2,
-                "z": 1.0,
-                "width": 1.5,
-                "height": 1.3,
-                "thickness": 0.08
-            }
-        ]
-
-        right_openings = [
-            {
-                "type": "window",
-                "offset": depth / 2,
-                "z": 1.0,
-                "width": 1.5,
-                "height": 1.3,
-                "thickness": 0.08
-            }
-        ]
-
+        front_openings = house_config.get("front_openings", [])
+        back_openings  = house_config.get("back_openings", [])
+        left_openings  = house_config.get("left_openings", [])
+        right_openings = house_config.get("right_openings", [])
         # ============================================================
         # FRONT WALL
         # ============================================================
-
+        
         front = self.create_wall_with_openings(
             length=width,
             height=wall_height,
@@ -803,19 +593,9 @@ class HOUSE_GEN():
             position=(0, 0),
         )
 
-        front.apply_translation(
-            (
-                0,
-                0+wall_thickness/2,
-                0,
-            )
-        )
+        front.apply_translation((0, wall_thickness / 2, 0))
         front = self.apply_box_texture(front, wall_path, scale=1.5)
-        scene.add_geometry(
-            front,
-            node_name="front_wall",
-        )
-
+        scene.add_geometry(front, node_name="front_wall")
         # ============================================================
         # BACK WALL
         # ============================================================
@@ -829,160 +609,102 @@ class HOUSE_GEN():
             position=(0, 0),
         )
 
-        back.apply_translation(
-            (
-                0,
-                depth-wall_thickness/2,
-                0,
-            )
-        )
+        back.apply_translation((0, depth - wall_thickness / 2, 0))
         back = self.apply_box_texture(back, wall_path, scale=1.5)
-        scene.add_geometry(
-            back,
-            node_name="back_wall",
-        )
+        scene.add_geometry(back, node_name="back_wall")
 
         # ============================================================
         # LEFT WALL
         # ============================================================
 
         left = self.create_wall_with_openings(
-            length=depth-2*wall_thickness,
+            length=depth - 2 * wall_thickness,
             height=wall_height,
             thickness=wall_thickness,
             openings=left_openings,
             axis="y",
             position=(0, 0),
         )
-
-        left.apply_translation(
-            (
-                wall_thickness/2,
-                wall_thickness,
-                0,
-            )
-        )
+        left.apply_transform(trimesh.transformations.rotation_matrix(angle=left_wall_angle, direction=[0, 0, 1],point=(0.0, 0.0, 0.0)))
+        left.apply_translation((wall_thickness / 2, wall_thickness, 0))
         left = self.apply_box_texture(left, wall_path, scale=1.5)
-        scene.add_geometry(
-            left,
-            node_name="left_wall",
-        )
-
+        
+        scene.add_geometry(left, node_name="left_wall")
         # ============================================================
         # RIGHT WALL
         # ============================================================
 
         right = self.create_wall_with_openings(
-            length=depth-2*wall_thickness,
+            length=depth - 2 * wall_thickness,
             height=wall_height,
             thickness=wall_thickness,
             openings=right_openings,
             axis="y",
             position=(0, 0),
         )
-
-        right.apply_translation(
-            (
-                width-wall_thickness/2,
-                wall_thickness,
-                0,
-            )
-        )
+        right.apply_transform(trimesh.transformations.rotation_matrix(angle=right_wall_angle, direction=[0, 0, 1],point=(0.0, 0.0, 0.0)))
+        right.apply_translation((width - wall_thickness / 2, wall_thickness, 0))
         right = self.apply_box_texture(right, wall_path, scale=1.5)
-        scene.add_geometry(
-            right,
-            node_name="right_wall",
-        )
+        scene.add_geometry(right, node_name="right_wall")
 
         # ============================================================
         # FLOOR
         # ============================================================
 
         floor = self.make_box(
-            (
-                width,
-                depth,
-                0.2,
-            ),
-            (
-                width / 2,
-                depth / 2,
-                -0.1,
-            ),
+            (width, depth, 0.2),
+            (width / 2, depth / 2, -0.1),
         )
-
-        scene.add_geometry(
-            floor,
-            node_name="floor",
-        )
+        scene.add_geometry(floor, node_name="floor")
 
         # ============================================================
         # ROOF
         # ============================================================
-
-        roof = self.create_gable_roof(
-            house_width=width,
-            house_depth=depth,
-            wall_height=wall_height,
-            roof_height=roof_height,
-        )
-        roof = self.apply_box_texture(roof, roof_path, scale=1.5)
-        scene.add_geometry(
-            roof,
-            node_name="roof",
-        )
+        if roof_type == "gable":
+            roof = self.create_gable_roof(
+                house_width=width,
+                house_depth=depth,
+                wall_height=wall_height,
+                roof_height=roof_height,
+            )
+            roof = self.apply_box_texture(roof, roof_path, scale=1.5)
+        else:
+            roof = self.make_box(
+                (width, depth, roof_height),
+                (width / 2, depth / 2, wall_height + roof_height / 2),
+            )
+            roof = self.apply_box_texture(roof, roof_path, scale=1.5)
+        
+        scene.add_geometry(roof, node_name="roof")
 
         # ============================================================
         # WINDOWS / DOORS
         # ============================================================
 
-        for i, opening in enumerate(front_openings):
-            self.add_opening_geometry(
-                scene,
-                opening,
-                "front",
-                width,
-                depth,
-                wall_thickness,
-                i
-            )
-
-        for i, opening in enumerate(back_openings):
-            self.add_opening_geometry(
-                scene,
-                opening,
-                "back",
-                width,
-                depth,
-                wall_thickness,
-                i
-            )
-
-        for i, opening in enumerate(left_openings):
-            self.add_opening_geometry(
-                scene,
-                opening,
-                "left",
-                width,
-                depth,
-                wall_thickness,
-                i
-            )
-
-        for i, opening in enumerate(right_openings):
-            self.add_opening_geometry(
-                scene,
-                opening,
-                "right",
-                width,
-                depth,
-                wall_thickness,
-                i
-            )
+        # Add opening geometries for all walls
+        walls_and_openings = [
+            ("front", front_openings),
+            ("back", back_openings),
+            ("left", left_openings),
+            ("right", right_openings),
+        ]
+        
+        for wall_name, openings in walls_and_openings:
+            for i, opening in enumerate(openings):
+                self.add_opening_geometry(
+                    scene,
+                    opening,
+                    wall_name,
+                    width,
+                    depth,
+                    wall_thickness,
+                    i
+                )
 
         return scene    
         
 if __name__ == "__main__":
+    
     house = HOUSE_GEN(
         width=10.0,
         depth=8.0,

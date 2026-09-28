@@ -69,7 +69,7 @@ def _query_gdf_layer(
 
     if place:
         query = getattr(osm, f"{layer_name}_from_place")
-        gdf = query(place, add_elevation=add_elevation, use_cache=False, save_cache=False)
+        gdf = query(place, add_elevation=add_elevation, use_cache=use_cache, save_cache=True)
     else:
         query = getattr(osm, f"{layer_name}_from_point")
         gdf = query(
@@ -239,9 +239,37 @@ def _load_layers(
     network_type: str,
     use_cache: bool,
     add_elevation: bool,
-    dist: float,
 ):
+    key = _location_key(place, point)
+    landuse_stem = osm._gdf_cache_stem("features", f"landuse__{key}")
+    landuse = osm._load_gdf(landuse_stem) if use_cache else None
+    if landuse is None:
+        if place:
+            landuse = osm.features_from_place(
+                place,
+                tags={"landuse": True},
+                add_elevation=False,
+                use_cache=False,
+                save_cache=True,
+                cache_name=f"landuse__{key}",
+            )
+        else:
+            landuse = osm.features_from_point(
+                point,
+                tags={"landuse": True},
+                add_elevation=False,
+                use_cache=False,
+                save_cache=True,
+                cache_name=f"landuse__{key}",
+            )
+
     buildings, bstem = _query_gdf_layer(osm, "buildings", place, point, use_cache, add_elevation)
+    if buildings is not None and not buildings.empty and landuse is not None and not landuse.empty:
+        if buildings.crs is not None and landuse.crs != buildings.crs:
+            landuse = landuse.to_crs(buildings.crs)
+        buildings = osm._attach_landuse_to_buildings(buildings, landuse)
+        osm._save_gdf(buildings, bstem)
+
     nodes, roads, rstem = _load_roads_layer(osm, place, point, network_type, use_cache, add_elevation)
     water, wstem = _query_gdf_layer(osm, "water", place, point, use_cache, add_elevation)
     parks, pstem = _query_gdf_layer(osm, "parks", place, point, use_cache, add_elevation)
@@ -253,7 +281,7 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--place", type=str, help="OSM place name, e.g. 'Atlanta, Georgia, USA'")
     group.add_argument("--point", type=_parse_point, help="Latitude,longitude point, e.g. '33.7490,-84.3880'")
-    parser.add_argument("--dist", type=float, default=1000, help="Search radius for point queries in meters")
+    parser.add_argument("--dist", type=float, default=1000, help="Side length of the square OSM query area in meters")
     parser.add_argument("--network_type", type=str, default="drive", help="OSM network type for roads")
     parser.add_argument("--cache_dir", type=str, default="cache")
     parser.add_argument("--use_cache", action="store_true", help="Load cached GeoDataFrames if available")
@@ -280,7 +308,6 @@ def main():
     place = args.place
     point = args.point
     use_cache = args.use_cache and not args.overwrite
-    dist = args.dist
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -291,7 +318,6 @@ def main():
         network_type=args.network_type,
         use_cache=use_cache,
         add_elevation=args.add_elevation,
-        dist=dist,
     )
 
     _print_layer_counts(buildings, nodes, roads, water, parks)
@@ -371,7 +397,7 @@ if __name__ == "__main__":
        python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache
 
     2. Tiled export:
-       python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache --dist 100 --verify
+       python main.py --place "Baltimore, Maryland, USA" --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation --use_cache --dist 1000.0 --verify
 
     3. Point-based location:
        python main.py --point 33.7490,-84.3880 --dist 1500 --output_dir assets/Terrain/Generate/baltimore --output_name baltimore.bam --add_elevation
